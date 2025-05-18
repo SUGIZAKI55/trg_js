@@ -1,0 +1,17 @@
+# OS generated files
+.DS_Store
+Thumbs.db
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+myenv/
+*/venv/
+.venv*
+venv*
+
+# Logs and temp files
+*.log
+tmp/
+temp/

@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Quiz App</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react-router-dom@6/dist/index.umd.js" integrity="sha384-..." crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* 追加のカスタムCSSスタイル */
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            margin-top: 50px;
+        }
+
+        .error-message {
+            color: red;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .signup-link {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .signup-link a {
+            color: #4CAF50;
+        }
+
+        .tab {
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #e0e0e0;
+        }
+
+        table {
+            width: 80%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useContext, createContext } = React;
+        const { BrowserRouter, Routes, Route, Link, useNavigate, useParams, useLocation } = ReactRouterDOM;
+
+        // AuthContext (必要に応じて)
+        const AuthContext = createContext();
+
+        function AuthProvider({ children }) {
+            const [token, setToken] = useState(localStorage.getItem('token') || null);
+            const [username, setUsername] = useState(localStorage.getItem('username') || null);
+
+            useEffect(() => {
+                if (token) localStorage.setItem('token', token);
+                else localStorage.removeItem('token');
+            }, [token]);
+
+            useEffect(() => {
+                if (username) localStorage.setItem('username', username);
+                else localStorage.removeItem('username');
+            }, [username]);
+
+            const login = (newToken, newUsername) => {
+                setToken(newToken);
+                setUsername(newUsername);
+            };
+
+            const logout = () => {
+                setToken(null);
+                setUsername(null);
+            };
+
+            const value = { token, username, login, logout };
+            return (
+                <AuthContext.Provider value={value}>
+                    {children}
+                </AuthContext.Provider>
+            );
+        }
+
+        // コンポーネント (例: Login.js)
+        function Login() {
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const { login } = useContext(AuthContext) || {}; // Context が存在しない場合にエラーを回避
+            const navigate = useNavigate();
+
+            const handleSubmit = async (event) => {
+                event.preventDefault();
+                try {
+                    const response = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password }),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        login(data.token, data.username);
+                        navigate('/admin');
+                    } else {
+                        setError(data.message || 'Login failed');
+                    }
+                } catch (error) {
+                    setError('Network error');
+                }
+            };
+
+            return (
+                <div className="container">
+                    <h2 className="text-center">Login Page</h2>
+                    {error && <div className="error-message">{error}</div>}
+                    <form onSubmit={handleSubmit}>
+                        <div className="form-group">
+                            <label htmlFor="username">Username:</label>
+                            <input
+                                type="text"
+                                className="form-control"
+                                id="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="password">Password:</label>
+                            <input
+                                type="password"
+                                className="form-control"
+                                id="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <button type="submit" className="btn btn-primary btn-block">Login</button>
+                    </form>
+                    <div className="signup-link">
+                        <p>Don't have an account? <Link to="/signup">Sign Up</Link></p>
+                    </div>
+                </div>
+            );
+        }
+
+        // 他のコンポーネント
+        function Signup() {
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [confirmPassword, setConfirmPassword] = useState('');
+            const [error, setError] = useState('');
+            const navigate = useNavigate();
+
+            const handleSubmit = async (event) => {
+                event.preventDefault();
+                if (password !== confirmPassword) {
+                    setError('Passwords do not match');
+                    return;
+                }
+                try {
+                    const response = await fetch('/api/auth/signup', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password }),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        navigate('/login'); // 登録成功後にログインページへ
+                    } else {
+                        setError(data.message || 'Signup failed');
+                    }
+                } catch (error) {
+                    setError('Network error');
+                }
+            };
+
+            return (
+                <div className="container">
+                    <h2 className="text-center">Sign Up</h2>
+                    {error && <div className="error-message">{error}</div>}
+                    <form onSubmit={handleSubmit}>
+                        <div className="form-group">
+                            <label htmlFor="username">Username:</label>
+                            <input
+                                type="text"
+                                className="form-control"
+                                id="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="password">Password:</label>
+                            <input
+                                type="password"
+                                className="form-control"
+                                id="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="confirmPassword">Confirm Password:</label>
+                            <input
+                                type="password"
+                                className="form-control"
+                                id="confirmPassword"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <button type="submit" className="btn btn-primary btn-block">Sign Up</button>
+                    </form>
+                    <div className="login-link">
+                        <p>Already have an account? <Link to="/login">Login</Link></p>
+                    </div>
+                </div>
+            );
+        }
+
+        function Admin() {
+            const { username, logout } = useContext(AuthContext) || {}; // Context が存在しない場合にエラーを回避
+            const navigate = useNavigate();
+
+            const handleLogout = () => {
+                logout();
+                navigate('/login');
+            };
+
+            return (
+                <div className="container">
+                    <h1 className="text-center">{username} の管理者画面</h1>
+                    <div className="tab">
+                        <button onClick={() => navigate('/genre')}>テストを実施</button>
+                        <button onClick={() => navigate('/q_list')}>テスト一覧・編集</button>
+                        <button onClick={() => navigate('/createquiz')}>テスト作成</button>
+                        <button onClick={() => navigate('/view')}>テスト結果</button>
+                        <button onClick={handleLogout}>ログアウト</button>
+                    </div>
+                </div>
+            );
+        }
+
+        function QuestionList() {
+            const [questions, setQuestions] = useState([]);
+            const navigate = useNavigate();
+
+            useEffect(() => {
+                fetch('/api/quiz/questions')
+                    .then(response => response.json())
+                    .then(data => setQuestions(data))
+                    .catch(error => console.error('Error fetching questions:', error));
+            }, []);
+
+            const handleEdit = (questionId) => {
+                navigate(`/edit/${questionId}`);
+            };
+
+            return (
+                <div className="container">
+                    <h1>問題一覧</h1>
+                    <ul>
+                        {questions.map(question => (
+                            <li key={question.rowid}>
+                                {question.Q_no} | {question.genre} | {question.title} -
+                                <button onClick={() => handleEdit(question.rowid)}>編集</button>
+                            </li>
+                        ))}
+                    </ul>
+                    <Link to="/createquiz">問題作成</Link>
+                </div>
+            );
+        }
+
+        function EditQuestion() {
+            const { questionId } = useParams();
+            const [question, setQuestion] = useState({ Q_no: '', genre: '', title: '', choices: '', answer: '', explanation: '' });
+            const navigate = useNavigate();
+
+            useEffect(() => {
+                fetch(`/api/quiz/questions/${questionId}`)
+                    .then(response => response.json())
+                    .then(data => setQuestion(data))
+                    .catch(error => console.error('Error fetching question:', error));
+            }, [questionId]);
+
+            const handleSubmit = (event) => {
+                event.preventDefault();
+                fetch(`/api/quiz/questions/${questionId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(question),
+                })
+                    .then(response => response.json())
+                    .then(() => navigate('/q_list'))
+                    .catch(error => console.error('Error updating question:', error));
+            };
+
+            const handleChange = (event) => {
+                setQuestion({ ...question, [event.target.name]: event.target.value });
+            };
+
+            return (
+                <div className="container">
+                    <h1>問題編集</h1>
+                    <form onSubmit={handleSubmit}>
+                        <div>
+                            <label>問題番号：</label>
+                            <input type="text" name="Q_no" value={question.Q_no} readOnly onChange={handleChange} />
+                        </div>
+                        <div>
+                            <label>ジャンル：</label>
+                            <input type="text" name="genre" value={question.genre} onChange={handleChange} />
+                        </div>
+                        <div>
+                            <label>問題文：</label>
+                            <input type="text" name="title" value={question.title} onChange={handleChange} />
+                        </div>
+                        <div>
+                            <label>選択肢：</label>
+                            <input type="text" name="choices" value={question.choices} onChange={handleChange} />
+                        </div>
+                        <div>
+                            <label>正解：</label>
+                            <input type="text" name="answer" value={question.answer} onChange={handleChange} />
+                        </div>
+                        <div>
+                            <label>解説：</label>
+                            <textarea name="explanation" value={question.explanation} onChange={handleChange} />
+                        </div>
+                        <button type="submit">保存</button>
+                    </form>
+                    <Link to="/q_list">戻る</Link>
+                </div>
+            );
+        }
+
+        function FirstQuestion() {
+            const location = useLocation();
+            const navigate = useNavigate();
+
+            useEffect(() => {
+                const { category, nanko } = location.state || {};
+                if (category && nanko) {
+                    navigate('/question', { state: { category, nanko } });
+                }
+            }, [location.state, navigate]);
+
+            return (
+                <div className="container">
+                    <h1>これから問題を始めます</h1>
+                    <h2>問題:</h2>
+                    <div>
+                        <h3>今から進みます</h3>
+                    </div>
+                </div>
+            );
+        }
+
+        function Genre() {
+            const [genres, setGenres] = useState({});
+            const [selectedGenre, setSelectedGenre] = useState('');
+            const [numQuestions, setNumQuestions] = useState(1);
+            const navigate = useNavigate();
+
+            useEffect(() => {
+                fetch('/api/quiz/genres')
+                    .then(response => response.json())
+                    .then(data => setGenres(data))
+                    .catch(error => console.error('Error fetching genres:', error));
+            }, []);
+
+            const handleSubmit = (event) => {
+                event.preventDefault();
+                if (!selectedGenre) {
+                    alert("ジャンルを1つ選択してください。");
+                    return;
+                }
+                const maxTopics = genres[selectedGenre].length;
+                if (isNaN(numQuestions) || numQuestions < 1 || numQuestions > maxTopics) {
+                    alert(`数字は1以上、選択したジャンルのトピック数 (${maxTopics}) 以下で入力してください。`);
+                    return false;
+                }
+                navigate('/firstquestion', { state: { category: selectedGenre, nanko: numQuestions } });
+            };
+
+            return (
+                <div className="container">
+                    <h1>ジャンルごとのトピック一覧</h1>
+                    {genres && (
+                        <form onSubmit={handleSubmit}>
+                            <ul>
+                                {Object.entries(genres).map(([genre, ids]) => (
+                                    <li key={genre}>
+                                        <input
+                                            type="radio"
+                                            name="category"
+                                            value={genre}
+                                            data-length={ids.length}
+                                            checked={selectedGenre === genre}
+                                            onChange={(e) => setSelectedGenre(e.target.value)}
+                                        />
+                                        <strong>{genre}:</strong> {ids.length}
+                                    </li>
+                                ))}
+                            </ul>
+                            数字を入力してください<br />
+                            <input
+                                type="text"
+                                name="nanko"
+                                value={numQuestions}
+                                onChange={(e) => setNumQuestions(parseInt(e.target.value, 10))}
+                            /><br /><br />
+                            <button type="submit">送信</button>
+                        </form>
+                    )}
+                </div>
+            );
+        }
+
+        function Kekka() {
+            const location = useLocation();
+            const navigate = useNavigate();
+            const { resultData, selectedChoices, correctAnswers, questionData } = location.state || {};
+
+            if (!resultData || !questionData) {
+                return <div>Loading...</div>; // またはエラーメッセージを表示
+            }
+
+            const answerFeedback = {};
+            questionData.choices.split(':').forEach(choice => {
+                answerFeedback[choice] = correctAnswers.includes(choice) ? '○' : '×';
+            });
+
+            return (
+                <div className="container">
+                    <div className="card-header text-center">
+                        <h3>問題 Q_no={questionData.Q_no}</h3>
+                    </div>
+                    <div>
+                        <div style={{ color: 'red', fontSize: '2em', fontWeight: 'bold' }}>
+                            <p>総合結果: {resultData.answer}</p>
+                        </div>
+                        <table border="1">
+                            <thead>
+                                <tr>
+                                    <th>選択肢</th>
+                                    <th>個別結果</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.entries(answerFeedback).map(([choice, feedback]) => (
+                                    <tr key={choice}>
+                                        <td>{choice}</td>
+                                        <td>{feedback}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <p>選択した答え: {selectedChoices.join(', ')}</p>
+                        <p>正しい答え: {correctAnswers.join(', ')}</p>
+                        {questionData.Q_no >= 1 ? (  // 問題数を仮に1としています。実際の値に応じて変更してください。
+                            <>
+                                <p>終了</p>
+                                <button onClick={() => navigate('/view')}>戻る</button>
+                            </>
+                        ) : (
+                            <form onSubmit={() => navigate('/question', { state: { category: questionData.genre, nanko: 1 } })}>
+                                経過時間{resultData.elapsed_time}M<br />
+                                <button type="submit">Next</button>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        function View() {
+            const [results, setResults] = useState({});
+
+            useEffect(() => {
+                fetch('/api/admin/results')
+                    .then(response => response.json())
+                    .then(data => setResults(data))
+                    .catch(error => console.error('Error fetching results:', error));
+            }, []);
+
+            return (
+                <div className="container">
+                    <h1>正答率の結果</h1>
+                    <div>
+                        <h2>名前とジャンル別正答率</h2>
+                        {results && Object.keys(results).length > 0 ? (
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ジャンル</th>
+                                        <th>正答率</th>
+                                        <th>正解数</th>
+                                        <th>総問題数</th>
+                                        <th>間違えた問題ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Object.entries(results).map(([name, genres]) => (
+                                        Object.entries(genres).map(([genre, data]) => (
+                                            <tr key={`${name}-${genre}`}>
+                                                <td>{genre}</td>
+                                                <td>{(data.correct / data.total) * 100 || 0}%</td>
+                                                <td>{data.correct}</td>
+                                                <td>{data.total}</td>
+                                                <td>
+                                                    {data.error && data.error.length > 0 ? (
+                                                        data.error.map((questionId, index) => (
+                                                            <span key={index}>
+                                                                <a href={`/admin/retry/${questionId}?genre=${genre}`}>{questionId}</a>{index < data.error.length - 1 ? ', ' : ''}
+                                                            </span>
+                                                        ))
+                                                    ) : 'なし'}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ))}
+                                </tbody>
+                            </table>
+                        ) : (
+                            <p>データがありません。</p>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        function App() {
