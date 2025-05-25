@@ -1,38 +1,43 @@
 # flask_api/__init__.py
-from flask import Flask
+
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from .api import api_bp
-from .db import init_db
+from .db import init_db, close_db
 import logging
-import os  # osモジュールを追加
+import os
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def create_app():
-    app = Flask(__name__)
-    app.config['SECRET_KEY'] = 'your_secret_key'  # セッションやJWTに必要
-    app.config['DATABASE'] = 'sugizaki.db'  # データベースファイル名
+    # static_folder を親ディレクトリのパスに設定 (index.html が flask_api の外にあるため)
+    app = Flask(__name__, static_folder='../', static_url_path='/') # static_url_pathもルートに
+    app.config['SECRET_KEY'] = 'your_super_secret_key_please_change_this_in_production'
+    app.config['DATABASE'] = os.path.join(app.root_path, 'sugizaki.db')
 
-    CORS(app)  # 必要に応じて
+    CORS(app)
 
-    app.register_blueprint(api_bp)  # API用のBlueprintを登録
+    app.register_blueprint(api_bp)
 
-    @app.teardown_appcontext
-    def close_db(error):
-        from .db import close_db
-        close_db(error)
+    app.teardown_appcontext(close_db)
 
-    # データベースの初期化をアプリコンテキスト内で実行
     with app.app_context():
-        init_db(app)
+        if not os.path.exists(app.config['DATABASE']):
+            print(f"データベース '{app.config['DATABASE']}' が見つかりません。初期化します...")
+            init_db(app)
+        else:
+            print(f"データベース '{app.config['DATABASE']}' が存在します。")
+
+    # ルートURL (/) で index.html を提供する
+    @app.route('/')
+    def serve_index():
+        return send_from_directory(app.static_folder, 'index.html')
+
+    # favicon.ico のリクエストも処理 (ブラウザが自動的に要求することが多いため)
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
     return app
 
-app = create_app()
-
-if __name__ == '__main__':
-    # スキーマファイルが存在しない場合にのみinit_dbを実行
-    if not os.path.exists('sugizaki.db'):
-        with app.app_context():
-            init_db(app)
-    app.run(debug=True)
+# `flask run` コマンドが `create_app()` 関数を自動的に検出して呼び出します。

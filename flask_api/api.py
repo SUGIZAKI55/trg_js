@@ -1,11 +1,12 @@
 # flask_api/api.py
+
 from flask import Blueprint, jsonify, request, g, session, abort, current_app
 import sqlite3
 import bcrypt
-import jwt  # JWTを使う場合
+import jwt
 from datetime import datetime, timedelta
 from .log_manager import log_w
-from quiz import quiz_questions  # quiz.py からインポート
+# from quiz import quiz_questions  # この行は削除しました
 import logging
 import random
 import json
@@ -13,29 +14,9 @@ import json
 logger = logging.getLogger(__name__)
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-def get_db():
-    if 'db' not in g:
-        g.db = sqlite3.connect(current_app.config['DATABASE'])
-        g.db.row_factory = sqlite3.Row
-    return g.db
-
-def close_db(e=None):
-    db = g.pop('db', None)
-    if db is not None:
-        db.close()
-
-def query_db(query, args=(), one=False):
-    cur = get_db().execute(query, args)
-    rv = cur.fetchall()
-    cur.close()
-    return (rv[0] if rv else None) if one else rv
-
-def execute_db(query, args=()):
-    db = get_db()
-    cur = db.cursor()
-    cur.execute(query, args)
-    db.commit()
-    cur.close()
+# db.py から get_db, close_db, query_db, execute_db を直接インポートします
+# こうすることで、api.py内で重複して定義する必要がなくなります
+from .db import get_db, close_db, query_db, execute_db
 
 # 認証API
 @api_bp.route('/auth/signup', methods=['POST'])
@@ -63,7 +44,6 @@ def login():
     user = query_db('SELECT id, password_hash FROM users WHERE username = ?', [username], one=True)
 
     if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash']):
-        # JWT を生成 (例)
         payload = {
             'user_id': user['id'],
             'exp': datetime.utcnow() + timedelta(hours=1)
@@ -81,7 +61,7 @@ def get_questions():
 
 @api_bp.route('/quiz/questions/<int:question_id>', methods=['GET'])
 def get_question(question_id):
-    question = query_db("SELECT Q_no, genre, title, choices, answer, explanation FROM quiz_questions WHERE rowid = ?", [question_id], one=True)
+    question = query_db("SELECT rowid, Q_no, genre, title, choices, answer, explanation FROM quiz_questions WHERE rowid = ?", [question_id], one=True)
     if question:
         return jsonify(dict(question))
     return jsonify({'message': 'Question not found'}), 404
@@ -98,6 +78,8 @@ def create_question():
     if not title:
         return jsonify({'message': 'Title is required'}), 400
     else:
+        # Q_no は自動採番されることが多いため、ここではデータベース任せにしています。
+        # 必要であれば、採番ロジックを追加してください。
         execute_db("INSERT INTO quiz_questions (genre, title, choices, answer, explanation) VALUES (?, ?, ?, ?, ?)",
                    [genre, title, choices, answer, explanation])
         return jsonify({'message': 'Question created'}), 201
@@ -128,8 +110,8 @@ def check_answer():
     elapsed_time = end_datetime - start_datetime
     username = data.get('username', "不明")
     genre = data.get("genre")
-    qmap = data.get("qmap")
-    question_id = data.get("question_id")
+    qmap = data.get("qmap") # 問題番号 (Q_no)
+    question_id = data.get("question_id") # DBのrowid
     kaisetsu = data.get("kaisetsu")
 
     answer = "正解" if set(selected_choices) == set(correct_ans) else f"不正解。正しい答えは: {', '.join(correct_ans)}"
@@ -152,24 +134,48 @@ def check_answer():
 
     return jsonify({
         'answer': answer,
-        'elapsed_time': str(elapsed_time),
+        'elapsed_time': str(elapsed_time.total_seconds()), # 秒単位で返す
         'correct_ans': correct_ans,
         'user_choice': selected_choices
     }), 200
 
 @api_bp.route('/quiz/genres', methods=['GET'])
 def get_genres():
-    global quiz_questions  # quiz.pyからインポートした変数を使用
+    # データベースからすべてのクイズ問題を取得
+    all_questions = query_db("SELECT rowid, Q_no, genre, title, choices, answer, explanation FROM quiz_questions")
+    
     genre_to_ids = {}
-    for topic in quiz_questions:
-        topic_id = topic[0]
-        genre_list = topic[1].split(":")
-        for genre in genre_list:
-            if genre in genre_to_ids:
-                genre_to_ids[genre].append(topic_id)
-            else:
-                genre_to_ids[genre] = [topic_id]
+    for topic in all_questions:
+        topic_id = topic['rowid']
+        genre_list = topic['genre'].split(":") if topic['genre'] else []
+        for genre_name in genre_list:
+            genre_name = genre_name.strip()
+            if genre_name:
+                if genre_name in genre_to_ids:
+                    genre_to_ids[genre_name].append(topic_id)
+                else:
+                    genre_to_ids[genre_name] = [topic_id]
     return jsonify(genre_to_ids)
+
+# ランダムな問題を取得する新しいエンドポイント
+@api_bp.route('/quiz/get_random_questions', methods=['GET'])
+def get_random_questions():
+    genre_param = request.args.get('genre')
+    count_param = request.args.get('count', type=int)
+
+    if not genre_param or not count_param:
+        return jsonify({'message': 'Genre and count parameters are required'}), 400
+
+    all_questions_in_db = query_db("SELECT rowid, Q_no, genre, title, choices, answer, explanation FROM quiz_questions WHERE genre LIKE ?", [f"%{genre_param}%"])
+
+    if not all_questions_in_db:
+        return jsonify({'message': 'No questions found for this genre'}), 404
+
+    random.shuffle(all_questions_in_db)
+    selected_questions = all_questions_in_db[:count_param]
+
+    return jsonify([dict(row) for row in selected_questions])
+
 
 # 管理API
 @api_bp.route('/admin/results', methods=['GET'])
@@ -197,10 +203,10 @@ def get_results():
                             result_data[name][genre]["correct"] += 1
                         elif result:
                             result_data[name][genre]["error"].append(question_id)
-            except json.JSONDecodeError:
-                logger.error(f"JSON デコードエラー: 行をスキップしました - {line.strip()}")
-            except Exception as e:
-                logger.error(f"ログ解析中に予期しないエラーが発生しました: {e}")
+                except json.JSONDecodeError:
+                    logger.error(f"JSON デコードエラー: 行をスキップしました - {line.strip()}")
+                except Exception as e:
+                    logger.error(f"ログ解析中に予期しないエラーが発生しました: {e}")
     except FileNotFoundError:
         logger.warning(f"ログファイル '{filename}' が見つかりません。")
     except Exception as e:
@@ -210,24 +216,28 @@ def get_results():
 
 @api_bp.route('/admin/retry/<question_id>', methods=['GET'])
 def retry_question(question_id):
-    global quiz_questions  # quiz.pyからインポートした変数を使用
-    quiz_item = next((q for q in quiz_questions if q[0] == question_id), None)
+    quiz_item = query_db("SELECT rowid, Q_no, genre, title, choices, answer, explanation FROM quiz_questions WHERE rowid = ?", [question_id], one=True)
+    
     if quiz_item is None:
         abort(404, description="問題が見つかりませんでした。")
-    answer_choices = quiz_item[3].split(":")
-    max_choices = min(len(answer_choices), 4)
-    selected_choices = random.sample(answer_choices, max_choices)
-    correct_answers_temp = set(quiz_item[4].split(":"))
-    correct_ans = list(set(selected_choices) & correct_answers_temp)
-    genre = request.args.get('genre', 'Unknown')
+    
+    answer_choices = quiz_item['choices'].split(":") if quiz_item['choices'] else []
+    
+    max_choices_to_display = min(len(answer_choices), 4)
+    selected_choices_for_display = random.sample(answer_choices, max_choices_to_display) if answer_choices else []
+
+    correct_ans_list = quiz_item['answer'].split(":") if quiz_item['answer'] else []
+    
+    genre = request.args.get('genre', quiz_item['genre'])
     start_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     return jsonify({
-        "question_id": question_id,
-        "question": quiz_item[2],
-        "choices": selected_choices,
-        "correct_ans": correct_ans,
+        "question_id": quiz_item['rowid'],
+        "Q_no": quiz_item['Q_no'],
+        "question": quiz_item['title'],
+        "choices": selected_choices_for_display,
+        "correct_ans": correct_ans_list,
         "genre_name": genre,
-        "kaisetsu": quiz_item[5],
+        "kaisetsu": quiz_item['explanation'],
         "start_datetime": start_datetime
     })

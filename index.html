@@ -6,7 +6,7 @@
     <title>My Quiz App</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/react-router-dom@6/dist/index.umd.js" integrity="sha384-..." crossorigin></script>
+    <script src="https://unpkg.com/react-router-dom@6.23.0/dist/index.umd.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -76,10 +76,11 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        // React フックと React Router DOM のオブジェクトを destructuring で取得
         const { useState, useEffect, useContext, createContext } = React;
         const { BrowserRouter, Routes, Route, Link, useNavigate, useParams, useLocation } = ReactRouterDOM;
 
-        // AuthContext (必要に応じて)
+        // AuthContext の定義
         const AuthContext = createContext();
 
         function AuthProvider({ children }) {
@@ -114,12 +115,12 @@
             );
         }
 
-        // コンポーネント (例: Login.js)
+        // Login コンポーネント
         function Login() {
             const [username, setUsername] = useState('');
             const [password, setPassword] = useState('');
             const [error, setError] = useState('');
-            const { login } = useContext(AuthContext) || {}; // Context が存在しない場合にエラーを回避
+            const { login } = useContext(AuthContext) || {};
             const navigate = useNavigate();
 
             const handleSubmit = async (event) => {
@@ -180,7 +181,7 @@
             );
         }
 
-        // 他のコンポーネント
+        // Signup コンポーネント
         function Signup() {
             const [username, setUsername] = useState('');
             const [password, setPassword] = useState('');
@@ -204,7 +205,7 @@
                     });
                     const data = await response.json();
                     if (response.ok) {
-                        navigate('/login'); // 登録成功後にログインページへ
+                        navigate('/login');
                     } else {
                         setError(data.message || 'Signup failed');
                     }
@@ -260,8 +261,9 @@
             );
         }
 
+        // Admin コンポーネント
         function Admin() {
-            const { username, logout } = useContext(AuthContext) || {}; // Context が存在しない場合にエラーを回避
+            const { username, logout } = useContext(AuthContext) || {};
             const navigate = useNavigate();
 
             const handleLogout = () => {
@@ -283,6 +285,7 @@
             );
         }
 
+        // QuestionList コンポーネント
         function QuestionList() {
             const [questions, setQuestions] = useState([]);
             const navigate = useNavigate();
@@ -314,6 +317,7 @@
             );
         }
 
+        // EditQuestion コンポーネント
         function EditQuestion() {
             const { questionId } = useParams();
             const [question, setQuestion] = useState({ Q_no: '', genre: '', title: '', choices: '', answer: '', explanation: '' });
@@ -379,6 +383,7 @@
             );
         }
 
+        // FirstQuestion コンポーネント
         function FirstQuestion() {
             const location = useLocation();
             const navigate = useNavigate();
@@ -401,6 +406,7 @@
             );
         }
 
+        // Genre コンポーネント
         function Genre() {
             const [genres, setGenres] = useState({});
             const [selectedGenre, setSelectedGenre] = useState('');
@@ -462,18 +468,26 @@
             );
         }
 
+        // Kekka (結果) コンポーネント
         function Kekka() {
             const location = useLocation();
             const navigate = useNavigate();
             const { resultData, selectedChoices, correctAnswers, questionData } = location.state || {};
 
             if (!resultData || !questionData) {
-                return <div>Loading...</div>; // またはエラーメッセージを表示
+                return <div>結果データがありません。</div>;
             }
 
+            const correctAnsSet = new Set(correctAnswers);
+            const choicesArray = questionData.choices.split(':');
             const answerFeedback = {};
-            questionData.choices.split(':').forEach(choice => {
-                answerFeedback[choice] = correctAnswers.includes(choice) ? '○' : '×';
+
+            choicesArray.forEach(choice => {
+                if (selectedChoices.includes(choice)) {
+                    answerFeedback[choice] = correctAnsSet.has(choice) ? '✅' : '❌';
+                } else {
+                    answerFeedback[choice] = correctAnsSet.has(choice) ? '⭕' : '-';
+                }
             });
 
             return (
@@ -485,40 +499,41 @@
                         <div style={{ color: 'red', fontSize: '2em', fontWeight: 'bold' }}>
                             <p>総合結果: {resultData.answer}</p>
                         </div>
-                        <table border="1">
+                        <table className="table table-bordered">
                             <thead>
                                 <tr>
                                     <th>選択肢</th>
-                                    <th>個別結果</th>
+                                    <th>判定</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {Object.entries(answerFeedback).map(([choice, feedback]) => (
-                                    <tr key={choice}>
+                                {choicesArray.map((choice, index) => (
+                                    <tr key={index}>
                                         <td>{choice}</td>
-                                        <td>{feedback}</td>
+                                        <td>{answerFeedback[choice]}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-                        <p>選択した答え: {selectedChoices.join(', ')}</p>
-                        <p>正しい答え: {correctAnswers.join(', ')}</p>
-                        {questionData.Q_no >= 1 ? (  // 問題数を仮に1としています。実際の値に応じて変更してください。
+                        <p>あなたの選択: {selectedChoices.join(', ')}</p>
+                        <p>正解: {correctAnswers.join(', ')}</p>
+                        {questionData.explanation && (
                             <>
-                                <p>終了</p>
-                                <button onClick={() => navigate('/view')}>戻る</button>
+                                <h4>解説</h4>
+                                <p>{questionData.explanation}</p>
                             </>
-                        ) : (
-                            <form onSubmit={() => navigate('/question', { state: { category: questionData.genre, nanko: 1 } })}>
-                                経過時間{resultData.elapsed_time}M<br />
-                                <button type="submit">Next</button>
-                            </form>
                         )}
+                        <p>経過時間: {parseFloat(resultData.elapsed_time).toFixed(2)}秒</p>
+
+                        <button className="btn btn-primary" onClick={() => navigate('/genre')}>新しいテストを開始</button>
+                        <button className="btn btn-secondary ml-2" onClick={() => navigate('/view')}>テスト結果一覧へ</button>
+
                     </div>
                 </div>
             );
         }
 
+        // View (結果一覧) コンポーネント
         function View() {
             const [results, setResults] = useState({});
 
@@ -535,7 +550,7 @@
                     <div>
                         <h2>名前とジャンル別正答率</h2>
                         {results && Object.keys(results).length > 0 ? (
-                            <table>
+                            <table className="table table-bordered">
                                 <thead>
                                     <tr>
                                         <th>ジャンル</th>
@@ -550,14 +565,14 @@
                                         Object.entries(genres).map(([genre, data]) => (
                                             <tr key={`${name}-${genre}`}>
                                                 <td>{genre}</td>
-                                                <td>{(data.correct / data.total) * 100 || 0}%</td>
+                                                <td>{((data.correct / data.total) * 100 || 0).toFixed(2)}%</td>
                                                 <td>{data.correct}</td>
                                                 <td>{data.total}</td>
                                                 <td>
                                                     {data.error && data.error.length > 0 ? (
                                                         data.error.map((questionId, index) => (
                                                             <span key={index}>
-                                                                <a href={`/admin/retry/${questionId}?genre=${genre}`}>{questionId}</a>{index < data.error.length - 1 ? ', ' : ''}
+                                                                <Link to={`/admin/retry/${questionId}?genre=${genre}`}>{questionId}</Link>{index < data.error.length - 1 ? ', ' : ''}
                                                             </span>
                                                         ))
                                                     ) : 'なし'}
@@ -575,4 +590,253 @@
             );
         }
 
+        // CreateQuiz コンポーネント
+        function CreateQuiz() {
+            const [genre, setGenre] = useState('');
+            const [title, setTitle] = useState('');
+            const [choices, setChoices] = useState('');
+            const [answer, setAnswer] = useState('');
+            const [explanation, setExplanation] = useState('');
+            const [error, setError] = useState('');
+            const navigate = useNavigate();
+
+            const handleSubmit = async (event) => {
+                event.preventDefault();
+                setError(''); 
+
+                const newQuestion = {
+                    genre,
+                    title,
+                    choices,
+                    answer,
+                    explanation
+                };
+
+                try {
+                    const response = await fetch('/api/quiz/questions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(newQuestion),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        alert('問題が正常に作成されました！');
+                        navigate('/q_list');
+                    } else {
+                        setError(data.message || '問題の作成に失敗しました。');
+                    }
+                } catch (err) {
+                    setError('ネットワークエラーが発生しました。');
+                    console.error('Error creating question:', err);
+                }
+            };
+
+            return (
+                <div className="container">
+                    <h1>問題作成</h1>
+                    {error && <div className="error-message">{error}</div>}
+                    <form onSubmit={handleSubmit}>
+                        <div className="form-group">
+                            <label htmlFor="genre">ジャンル：</label>
+                            <input type="text" className="form-control" id="genre" name="genre" value={genre} onChange={(e) => setGenre(e.target.value)} required />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="title">問題文：</label>
+                            <textarea className="form-control" id="title" name="title" value={title} onChange={(e) => setTitle(e.target.value)} rows="3" required></textarea>
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="choices">選択肢 (例: 選1:選2:選3):</label>
+                            <input type="text" className="form-control" id="choices" name="choices" value={choices} onChange={(e) => setChoices(e.target.value)} placeholder="選択肢をコロン ':' で区切って入力" required />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="answer">正解 (例: 選1:選2):</label>
+                            <input type="text" className="form-control" id="answer" name="answer" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="正解をコロン ':' で区切って入力" required />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="explanation">解説：</label>
+                            <textarea className="form-control" id="explanation" name="explanation" value={explanation} onChange={(e) => setExplanation(e.target.value)} rows="5"></textarea>
+                        </div>
+                        <button type="submit" className="btn btn-primary btn-block">問題を作成</button>
+                    </form>
+                    <div className="mt-3 text-center">
+                        <Link to="/q_list">問題一覧へ戻る</Link>
+                    </div>
+                </div>
+            );
+        }
+
+        // Question コンポーネント
+        function Question() {
+            const location = useLocation();
+            const navigate = useNavigate();
+            const { category, nanko } = location.state || {};
+            const [questions, setQuestions] = useState([]);
+            const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+            const [selectedChoices, setSelectedChoices] = useState([]);
+            const [quizStartTime, setQuizStartTime] = useState(null);
+            const [error, setError] = useState('');
+
+            useEffect(() => {
+                if (!category || !nanko) {
+                    setError('クイズのジャンルまたは問題数が指定されていません。');
+                    return;
+                }
+
+                const fetchQuestions = async () => {
+                    setError('');
+                    try {
+                        const response = await fetch(`/api/quiz/get_random_questions?genre=${category}&count=${nanko}`);
+                        
+                        const data = await response.json();
+                        if (response.ok) {
+                            if (data.length === 0) {
+                                setError('指定されたジャンルの問題が見つかりませんでした。');
+                                return;
+                            }
+                            setQuestions(data);
+                            setQuizStartTime(new Date());
+                            setSelectedChoices([]);
+                        } else {
+                            setError(data.message || '問題の取得に失敗しました。');
+                        }
+                    } catch (err) {
+                        setError('ネットワークエラーが発生しました。');
+                        console.error('Error fetching questions:', err);
+                    }
+                };
+
+                fetchQuestions();
+            }, [category, nanko]);
+
+            const handleChoiceChange = (choice) => {
+                if (selectedChoices.includes(choice)) {
+                    setSelectedChoices(selectedChoices.filter(c => c !== choice));
+                } else {
+                    setSelectedChoices([...selectedChoices, choice]);
+                }
+            };
+
+            const handleSubmitAnswer = async () => {
+                setError('');
+                if (selectedChoices.length === 0) {
+                    alert('選択肢を1つ以上選んでください。');
+                    return;
+                }
+
+                const currentQuestion = questions[currentQuestionIndex];
+                const correctAnswers = currentQuestion.answer.split(':');
+                const username = localStorage.getItem('username') || 'Guest';
+
+                const payload = {
+                    user_choice: selectedChoices,
+                    correct_ans: correctAnswers,
+                    start_datetime: quizStartTime.toISOString().slice(0, 19).replace('T', ' '),
+                    username: username,
+                    genre: currentQuestion.genre,
+                    qmap: currentQuestion.Q_no,
+                    question_id: currentQuestion.rowid,
+                    kaisetsu: currentQuestion.explanation
+                };
+
+                try {
+                    const response = await fetch('/api/quiz/check_answer', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload),
+                    });
+                    const resultData = await response.json();
+
+                    navigate('/kekka', {
+                        state: {
+                            resultData: resultData,
+                            selectedChoices: selectedChoices,
+                            correctAnswers: correctAnswers,
+                            questionData: currentQuestion
+                        }
+                    });
+
+                } catch (err) {
+                    setError('解答送信中にエラーが発生しました。');
+                    console.error('Error submitting answer:', err);
+                }
+            };
+
+            if (error) {
+                return <div className="container error-message">{error}</div>;
+            }
+
+            if (questions.length === 0) {
+                return <div className="container">問題を取得中...</div>;
+            }
+
+            const currentQuestion = questions[currentQuestionIndex];
+            const choices = currentQuestion.choices.split(':');
+
+            return (
+                <div className="container">
+                    <h1 className="text-center">クイズ開始！</h1>
+                    <div className="card mt-4">
+                        <div className="card-header">
+                            <h5>問題 {currentQuestionIndex + 1} / {questions.length}</h5>
+                            <p>ジャンル: {currentQuestion.genre}</p>
+                        </div>
+                        <div className="card-body">
+                            <h4 className="card-title">{currentQuestion.title}</h4>
+                            <div className="form-group">
+                                {choices.map((choice, index) => (
+                                    <div key={index} className="form-check">
+                                        <input
+                                            type="checkbox"
+                                            className="form-check-input"
+                                            id={`choice-${index}`}
+                                            value={choice}
+                                            checked={selectedChoices.includes(choice)}
+                                            onChange={() => handleChoiceChange(choice)}
+                                        />
+                                        <label className="form-check-label" htmlFor={`choice-${index}`}>
+                                            {choice}
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                            <button className="btn btn-primary mt-3" onClick={handleSubmitAnswer}>解答する</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // App コンポーネント (ルーティング定義)
         function App() {
+            return (
+                <BrowserRouter>
+                    <AuthProvider>
+                        <Routes>
+                            <Route path="/" element={<Login />} />
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/signup" element={<Signup />} />
+                            <Route path="/admin" element={<Admin />} />
+                            <Route path="/q_list" element={<QuestionList />} />
+                            <Route path="/edit/:questionId" element={<EditQuestion />} />
+                            <Route path="/createquiz" element={<CreateQuiz />} />
+                            <Route path="/genre" element={<Genre />} />
+                            <Route path="/firstquestion" element={<FirstQuestion />} />
+                            <Route path="/question" element={<Question />} />
+                            <Route path="/kekka" element={<Kekka />} />
+                            <Route path="/view" element={<View />} />
+                            <Route path="*" element={<div>404 Not Found</div>} />
+                        </Routes>
+                    </AuthProvider>
+                </BrowserRouter>
+            );
+        }
+
+        // AppコンポーネントをDOMにレンダリング
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
