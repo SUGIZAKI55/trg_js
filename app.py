@@ -12,6 +12,7 @@ def create_app():
     
     database_path = os.path.join(app.root_path, 'flask_api', 'sugizaki.db')
     app.config['DATABASE'] = database_path
+    print(f"Flask APP using database: {database_path}") # ★この行を追加★
     
     app.register_blueprint(api_bp)
 
