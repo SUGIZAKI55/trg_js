@@ -13,3 +13,6 @@ categoryとnankoがhistory.stateにないためです。
 これにより、Maps('/firstquestion', { category: selectedGenre, nanko: numQuestions }); が呼び出され、renderFirstQuestion が表示されます。
 renderFirstQuestion 内で category と nanko が存在すると判断され、自動的に Maps('/question', { category, nanko }); が呼び出されます。
 renderQuestion が category と nanko を受け取り、バックエンドから問題をフェッチして表示するはずです。
+
+
+7/6 log.ndjsonから分析をできるようにする
