@@ -1,56 +1,22 @@
 # trg_js/app.py
 
-from flask import Flask, g, current_app, send_from_directory
-from flask_api.api import api_bp
+from flask_api import create_app # flask_api/__init__.py から create_app をインポート
 import os
-import sqlite3
+import logging # ロギングを追加
 
-# db.pyから get_db, close_db をインポート
-from flask_api.db import get_db, close_db
+logger = logging.getLogger(__name__) # このモジュール用のロガーを取得
 
-def create_app():
-    app = Flask(__name__)
-    
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_super_secret_default_key_change_this!') 
-    
-    database_path = os.path.join(app.root_path, 'flask_api', 'sugizaki.db')
-    app.config['DATABASE'] = database_path
-    print(f"Flask APP using database: {database_path}")
-
-    app.register_blueprint(api_bp)
-
-    # データベース接続のクリーンアップ設定
-    @app.teardown_appcontext
-    def close_db_connection(exception):
-        db = getattr(g, '_database', None)
-        if db is not None:
-            db.close()
-
-    # --- ここから修正・追加部分 ---
-
-    # SPAの全てのクライアントサイドルートに対して index.html を返す
-    # 注意: /api/ で始まるパスは api_bp で処理されるため、ここには含めない
-    @app.route('/', defaults={'path': ''}) # ルートパスのデフォルト
-    @app.route('/<path:path>') # それ以外の全てのパス（ただし /api/ を除く）
-    def serve_spa_routes(path):
-        # app.root_path は 'trg_js' ディレクトリを指します
-        # index.html が 'trg_js' ディレクトリの直下にあることを想定しています
-        # index.html が見つからない場合は、パスを調整してください。
-        # 例: index.html が 'trg_js/static' にある場合:
-        # return send_from_directory(os.path.join(app.root_path, 'static'), 'index.html')
-        
-        # あなたの構成では 'trg_js' ディレクトリの直下に index.html があるようなので、これでOK
-        return send_from_directory(app.root_path, 'index.html')
-
-    # favicon.ico のリクエストを処理（ブラウザが自動で要求することがあるため）
-    @app.route('/favicon.ico')
-    def favicon():
-        return send_from_directory(app.root_path, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
-        
-    # --- 修正・追加部分ここまで ---
-
-    return app
+app = create_app()
 
 if __name__ == '__main__':
-    app = create_app()
+    # データベースファイルパスが正しく設定されているか確認
+    database_path = app.config.get('DATABASE') # configから安全に取得
+    if database_path:
+        if not os.path.exists(database_path):
+            logger.warning(f"データベースファイル '{database_path}' が見つかりません。アプリケーション起動時に自動作成されます。")
+        else:
+            logger.info(f"データベースファイル '{database_path}' を使用します。")
+    else:
+        logger.error("データベースパスが設定されていません。")
+
     app.run(debug=True)
