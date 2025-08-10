@@ -1,15 +1,13 @@
--- users テーブルが存在すれば削除し、新しく作成
-DROP TABLE IF EXISTS users;
-CREATE TABLE users (
+-- users テーブル: データを永続化するため、毎回削除しないように修正
+CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user' -- ★追加: ユーザーのロール（権限）カラム
 );
 
--- quiz_questions テーブルが存在すれば削除し、新しく作成
-DROP TABLE IF EXISTS quiz_questions;
-CREATE TABLE quiz_questions (
+-- quiz_questions テーブルも初回起動時のみ作成する
+CREATE TABLE IF NOT EXISTS quiz_questions (
     rowid INTEGER PRIMARY KEY AUTOINCREMENT,
     Q_no INTEGER, -- 問題番号（任意、テキストファイルからインポート用）
     genre TEXT NOT NULL,

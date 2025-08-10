@@ -1,16 +1,15 @@
 # trg_js/app.py
 
-from flask_api import create_app # flask_api/__init__.py から create_app をインポート
+from flask_api import create_app
 import os
-import logging # ロギングを追加
+import logging
 
-logger = logging.getLogger(__name__) # このモジュール用のロガーを取得
+logger = logging.getLogger(__name__)
 
 app = create_app()
 
 if __name__ == '__main__':
-    # データベースファイルパスが正しく設定されているか確認
-    database_path = app.config.get('DATABASE') # configから安全に取得
+    database_path = app.config.get('DATABASE')
     if database_path:
         if not os.path.exists(database_path):
             logger.warning(f"データベースファイル '{database_path}' が見つかりません。アプリケーション起動時に自動作成されます。")

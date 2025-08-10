@@ -1,18 +1,1 @@
-エラー
-genreから始まるのが、2回目に始めようとするとhttp://127.0.0.1:5000/questionとなる　6/22
-
-renderQuestion ページに直接アクセスしてクイズを開始することは、現在の設計では意図されていません。
-categoryとnankoがhistory.stateにないためです。
-
-正しいクイズの開始フローは、/genre ページから開始することです。
-
-ブラウザで http://127.0.0.1:5000/genre にアクセスします。
-ジャンルと問題数を選択します。（例: 「日本史:室町時代」を選び、問題数を「5」などと入力）
-「送信」ボタンをクリックします。
-
-これにより、Maps('/firstquestion', { category: selectedGenre, nanko: numQuestions }); が呼び出され、renderFirstQuestion が表示されます。
-renderFirstQuestion 内で category と nanko が存在すると判断され、自動的に Maps('/question', { category, nanko }); が呼び出されます。
-renderQuestion が category と nanko を受け取り、バックエンドから問題をフェッチして表示するはずです。
-
-
-7/6 log.ndjsonから分析をできるようにする
+https://notepm.jp/sharing/ac117dcf-c540-4b24-9e35-96be7cbd2b78
