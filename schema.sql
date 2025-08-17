@@ -1,18 +1,20 @@
--- users テーブル: データを永続化するため、毎回削除しないように修正
+-- users テーブル: IF NOT EXISTS を使い、データが存在すれば削除しない
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user' -- ★追加: ユーザーのロール（権限）カラム
+    role TEXT NOT NULL DEFAULT 'user',
+    -- ★★★ 追加: ユーザー登録日時を記録するカラム ★★★
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- quiz_questions テーブルも初回起動時のみ作成する
+-- quiz_questions テーブルも同様に、IF NOT EXISTS を使用
 CREATE TABLE IF NOT EXISTS quiz_questions (
-    rowid INTEGER PRIMARY KEY AUTOINCREMENT,
-    Q_no INTEGER, -- 問題番号（任意、テキストファイルからインポート用）
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Q_no INTEGER,
     genre TEXT NOT NULL,
     title TEXT NOT NULL,
-    choices TEXT NOT NULL, -- 例: "選択肢1:選択肢2:選択肢3"
-    answer TEXT NOT NULL,  -- 例: "正解1:正解2" (複数正解対応)
-    explanation TEXT       -- 解説
+    choices TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    explanation TEXT
 );
