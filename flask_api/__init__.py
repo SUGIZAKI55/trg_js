@@ -14,7 +14,10 @@ def create_app():
     current_module_dir = os.path.dirname(os.path.abspath(__file__))
     project_root_absolute_path = os.path.abspath(os.path.join(current_module_dir, '..'))
 
-    app = Flask(__name__, static_folder=project_root_absolute_path, static_url_path='/')
+    # ★★★ 修正箇所 ★★★
+    # Flaskのデフォルトの静的ファイル処理を無効化し、全てのルーティングを独自関数に委ねる
+    app = Flask(__name__, static_folder=None)
+    
     app.root_path = project_root_absolute_path
     
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_super_secret_default_key_change_this_in_production!')
@@ -36,10 +39,20 @@ def create_app():
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
     def serve_spa_routes(path):
-        return send_from_directory(app.static_folder, 'index.html')
+        # ★★★ 修正箇所 ★★★
+        # app.root_path を静的ファイルのルートとして使用する
+        static_file_root = app.root_path
+
+        # リクエストされたパスが実在するファイルであればそれを返す
+        if path != "" and os.path.exists(os.path.join(static_file_root, path)):
+            return send_from_directory(static_file_root, path)
+        # そうでなければ、SPAのエントリーポイントである index.html を返す
+        else:
+            return send_from_directory(static_file_root, 'index.html')
     
     @app.route('/favicon.ico')
     def favicon():
-        return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+        # favicon.ico が存在すれば返す
+        return send_from_directory(app.root_path, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
     return app

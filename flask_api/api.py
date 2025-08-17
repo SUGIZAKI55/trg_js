@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request, g, abort, current_app
 import sqlite3
 import bcrypt
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone # ★★★ timezone をインポート ★★★
 # log_manager.py から log_w 関数のみをインポート
 from .log_manager import log_w
 import logging
@@ -116,7 +116,7 @@ def login():
             'user_id': user['id'],
             'username': user['username'], # user['username'] が正しくアクセスできるようになる
             'role': user['role'], # ロール情報をJWTペイロードに追加
-            'exp': datetime.utcnow() + timedelta(hours=1) # トークンの有効期限 (例: 1時間)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1) # ★★★ UTC基準に変更 ★★★
         }
         token = jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256')
         logger.info(f"User '{username}' logged in successfully with role '{user['role']}'.")
@@ -217,12 +217,15 @@ def check_answer():
         return jsonify({'message': 'start_datetime is required'}), 400
 
     try:
-        start_datetime = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M:%S')
-    except ValueError:
+        # ★★★ 修正箇所: ISO 8601形式の文字列をtimezone-awareなdatetimeオブジェクトに変換 ★★★
+        # 'Z' (Zulu time) を '+00:00' に置換して fromisoformat でパース
+        start_datetime = datetime.fromisoformat(start_datetime_str.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
         logger.warning(f"Check answer failed: Invalid start_datetime format '{start_datetime_str}' for user '{username}'.")
-        return jsonify({'message': 'Invalid start_datetime format. Expected YYYY-MM-DD HH:MM:SS'}), 400
+        return jsonify({'message': 'Invalid start_datetime format. Expected ISO 8601 format (e.g., YYYY-MM-DDTHH:MM:SS.sssZ)'}), 400
 
-    end_datetime = datetime.now()
+    # ★★★ 修正箇所: 現在時刻もUTCで取得してタイムゾーンを統一 ★★★
+    end_datetime = datetime.now(timezone.utc)
     elapsed_time = end_datetime - start_datetime
 
     # set() を使用して、選択肢の順序に関わらず正解を判定
@@ -230,7 +233,7 @@ def check_answer():
     answer = "正解" if is_correct else f"不正解。正しい答えは: {', '.join(correct_ans)}"
 
     log_data = {
-        "date": datetime.now().strftime('%Y-%m-%d'),
+        "date": datetime.now(timezone.utc).strftime('%Y-%m-%d'), # ★★★ UTC基準に変更 ★★★
         "name": username,
         "genre": genre,
         "qmap": qmap,
@@ -375,7 +378,10 @@ def retry_question(question_id):
     
     # クライアントからジャンルが指定された場合それを使用、なければDBから取得したジャンルを使用
     genre = request.args.get('genre', quiz_item['genre'])
-    start_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # ★★★ 修正箇所: 開始時刻もUTCで生成してフロントエンドに渡す ★★★
+    start_datetime = datetime.now(timezone.utc).isoformat()
+
 
     logger.info(f"Admin '{g.current_username}' preparing retry for question_id {question_id}.")
     return jsonify({

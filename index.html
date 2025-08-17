@@ -434,7 +434,6 @@
         // EditQuestion コンポーネント
         async function renderEditQuestion(questionId) {
             console.log('RENDEREDITQUESTION: Function called with ID:', questionId);
-            // ★変更: Auth.isAdmin() ヘルパー関数で管理者権限をチェック
             if (!Auth.isAdmin()) {
                 alert('管理者権限が必要です。');
                 navigate('/genre');
@@ -446,9 +445,7 @@
 
             try {
                 const response = await fetch(`/api/quiz/questions/${questionId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
                 if (response.ok) {
@@ -1061,7 +1058,6 @@
         // CreateQuiz コンポーネント
         function renderCreateQuiz() {
             console.log('RENDERCREATEQUIZ: Function called.');
-            // ★変更: Auth.isAdmin() ヘルパー関数で管理者権限をチェック
             if (!Auth.isAdmin()) {
                 alert('管理者権限が必要です。');
                 navigate('/genre');
@@ -1264,8 +1260,9 @@
 
                 const correctAnswers = (currentQuestion.correct_ans || currentQuestion.answer).split(':').filter(c => c.trim() !== '');
                 const username = Auth.username || 'Guest';
-                const now = new Date();
-                const startDatetimeISO = quizStartTime.toISOString().slice(0, 19).replace('T', ' ');
+                
+                // ★★★ 修正箇所: toISOString() を使ってUTC基準のISO 8601形式で送信 ★★★
+                const startDatetimeISO = quizStartTime.toISOString();
 
                 const payload = {
                     user_choice: selectedChoices,
@@ -1380,8 +1377,6 @@
             const state = history.state; 
             console.log('HANDLEROUTING: Function called for path:', path, 'state:', state);
 
-            // 認証が必要なページへのアクセス制御をここで一元的に行う
-            // /login と /signup 以外は認証済みかをチェック
             if (!Auth.isAuthenticated() && path !== '/login' && path !== '/signup') {
                 console.log('HANDLEROUTING: Not authenticated, redirecting to login.');
                 navigate('/login');
@@ -1458,16 +1453,11 @@
                         }
                     } else if (path.startsWith('/admin/retry/')) {
                         const questionId = path.split('/')[3];
-                        // retryQuestion APIから返されたデータは直接renderQuestionに渡す
-                        // stateには{genre: "ジャンル名", questionId: ID, retriedQuestionData: {...}} が入る想定
                         if (questionId && state && state.retriedQuestionData) {
                             console.log('HANDLEROUTING: Path is /admin/retry/:id, rendering Question with retried data for ID:', questionId);
                             renderQuestion(state); // renderQuestion内で権限チェックとデータ処理
                         } else {
-                            // APIを叩いてからnavigateするように変更されたため、ここに来ることは少なくなるはず
-                            // APIを直接叩く場合は、ここでhandleRetryQuestionを呼び出す
                             console.log('HANDLEROUTING: Invalid /admin/retry/ path or missing data in state.');
-                            // 一旦結果一覧に戻す
                             navigate('/view'); 
                         }
                     }
