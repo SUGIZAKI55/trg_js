@@ -11,157 +11,106 @@
         .container { margin-top: 50px; max-width: 800px; }
         .error-message { color: red; text-align: center; margin-bottom: 15px; font-weight: bold; }
         .success-message { color: green; text-align: center; margin-bottom: 15px; font-weight: bold; }
-        .signup-link, .login-link { text-align: center; margin-top: 15px; }
-        .signup-link a, .login-link a { color: #4CAF50; }
         .tab { text-align: center; margin-top: 50px; }
         .tab button { margin: 10px; }
         table { width: 100%; border-collapse: collapse; margin: 20px auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: center; vertical-align: middle; }
         th { background-color: #e9ecef; font-weight: bold; }
-        tr:nth-child(even) { background-color: #f2f2f2; }
-        tr:hover { background-color: #e6e6e6; }
-        .chart-container { width: 90%; margin: 40px auto; background-color: #ffffff; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .form-group { margin-bottom: 1.5rem; }
         .dashboard-button-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 40px; }
         .dashboard-button { padding: 2rem; font-size: 1.2rem; }
+        /* モーダル用のスタイル */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
+        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 
 <body>
     <div id="root"></div>
-    <script>
-        // --- ユーティリティ関数 ---
-        function render(componentHtml) {
-            document.getElementById('root').innerHTML = componentHtml;
-        }
-
-        function navigate(path, state = {}) {
-            if (window.location.pathname !== path || JSON.stringify(history.state) !== JSON.stringify(state)) {
-                history.pushState(state, '', path);
-                handleRouting();
-            }
-        }
-
+    <div id="modal-container"></div> <script>
         // --- 認証状態管理 ---
         const Auth = {
-            token: localStorage.getItem('token') || null,
-            username: localStorage.getItem('username') || null,
-            role: localStorage.getItem('role') || null,
-            setToken(newToken) { this.token = newToken; if (newToken) localStorage.setItem('token', newToken); else localStorage.removeItem('token'); },
-            setUsername(newUsername) { this.username = newUsername; if (newUsername) localStorage.setItem('username', newUsername); else localStorage.removeItem('username'); },
-            setRole(newRole) { this.role = newRole; if (newRole) localStorage.setItem('role', newRole); else localStorage.removeItem('role'); },
-            login(newToken, newUsername, newRole) {
-                this.setToken(newToken);
-                this.setUsername(newUsername);
-                this.setRole(newRole);
-                if (newRole === 'admin') {
-                    navigate('/admin');
-                } else {
-                    navigate('/dashboard'); 
-                }
-            },
-            logout() {
-                this.setToken(null);
-                this.setUsername(null);
-                this.setRole(null);
-                navigate('/login');
-            },
+            token: localStorage.getItem('token') || null, username: localStorage.getItem('username') || null, role: localStorage.getItem('role') || null,
+            setToken(t) { this.token = t; if (t) localStorage.setItem('token', t); else localStorage.removeItem('token'); },
+            setUsername(u) { this.username = u; if (u) localStorage.setItem('username', u); else localStorage.removeItem('username'); },
+            setRole(r) { this.role = r; if (r) localStorage.setItem('role', r); else localStorage.removeItem('role'); },
+            login(t, u, r) { this.setToken(t); this.setUsername(u); this.setRole(r); navigate(r === 'master' || r === 'admin' ? '/admin' : '/dashboard'); },
+            logout() { this.setToken(null); this.setUsername(null); this.setRole(null); navigate('/login'); },
             isAuthenticated() { return this.token !== null; },
-            isAdmin() { return this.isAuthenticated() && this.role === 'admin'; }
+            isMaster() { return this.isAuthenticated() && this.role === 'master'; },
+            isAdmin() { return this.isAuthenticated() && (this.role === 'admin' || this.role === 'master'); }
         };
 
-        // --- 各コンポーネント ---
+        // --- ユーティリティ関数 ---
+        function render(c) { document.getElementById('root').innerHTML = c; }
+        function navigate(p, s={}) { if (window.location.pathname !== p || JSON.stringify(history.state) !== JSON.stringify(s)) { history.pushState(s, '', p); handleRouting(); } }
 
-        function renderLogin(initialError = '') {
-            let errorMessage = initialError;
-            let successMessage = '';
+        // --- 各コンポーネント ---
+        function renderLogin(initialMessage = '', isError = true) {
+            let message = initialMessage;
             if (history.state && history.state.signupSuccess) {
-                successMessage = 'サインアップに成功しました。ログインしてください。';
+                message = '登録に成功しました。ログインしてください。';
+                isError = false;
                 history.replaceState({}, '', '/login');
             }
-            const handleSubmit = async (event) => {
-                event.preventDefault();
-                const username = event.target.username.value;
-                const password = event.target.password.value;
-                try {
-                    const response = await fetch('/api/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username, password }),
-                    });
-                    const data = await response.json();
-                    if (response.ok) {
-                        Auth.login(data.token, data.username, data.role);
-                    } else {
-                        renderLogin(data.message || 'Login failed');
-                    }
-                } catch (err) {
-                    renderLogin('ネットワークエラー: ' + err.message);
-                }
-            };
+            const messageHtml = message ? `<div class="${isError ? 'error-message' : 'success-message'}">${message}</div>` : '';
             const html = `
                 <div class="container">
                     <h2 class="text-center mb-4">ログイン</h2>
-                    ${errorMessage ? `<div class="error-message">${errorMessage}</div>` : ''}
-                    ${successMessage ? `<div class="success-message">${successMessage}</div>` : ''}
+                    ${messageHtml}
                     <form id="loginForm">
-                        <div class="form-group"><label for="username">ユーザー名:</label><input type="text" class="form-control" id="username" name="username" required></div>
-                        <div class="form-group"><label for="password">パスワード:</label><input type="password" class="form-control" id="password" name="password" required></div>
+                        <div class="form-group"><label>ユーザー名:</label><input type="text" class="form-control" name="username" required></div>
+                        <div class="form-group"><label>パスワード:</label><input type="password" class="form-control" name="password" required></div>
                         <button type="submit" class="btn btn-primary btn-block">ログイン</button>
                     </form>
-                    <div class="signup-link"><p>アカウントをお持ちではありませんか？ <a href="/signup">新規登録</a></p></div>
+                    <div class="text-center mt-3"><p>アカウントをお持ちではありませんか？ <a href="/signup">新規登録</a></p></div>
                 </div>`;
             render(html);
-            document.getElementById('loginForm').addEventListener('submit', handleSubmit);
-            document.querySelector('.signup-link a').addEventListener('click', (e) => { e.preventDefault(); navigate('/signup'); });
+            document.getElementById('loginForm').addEventListener('submit', async e => {
+                e.preventDefault();
+                const u = e.target.username.value, p = e.target.password.value;
+                try {
+                    const res = await fetch('/api/auth/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: u, password: p}) });
+                    const data = await res.json();
+                    if(res.ok) Auth.login(data.token, data.username, data.role);
+                    else renderLogin(data.message || 'ログイン失敗', true);
+                } catch (err) { renderLogin('ネットワークエラー', true); }
+            });
+            document.querySelector('a[href="/signup"]').addEventListener('click', e => { e.preventDefault(); navigate('/signup'); });
         }
 
-        function renderSignup(initialError = '') {
-            let errorMessage = initialError;
-            const handleSubmit = async (event) => {
-                event.preventDefault();
-                const username = event.target.username.value;
-                const password = event.target.password.value;
-                const confirmPassword = event.target.confirmPassword.value;
-                if (password !== confirmPassword) {
-                    renderSignup('パスワードが一致しません。'); 
-                    return;
-                }
-                if (password.length < 6) {
-                    renderSignup('パスワードは6文字以上で入力してください。');
-                    return;
-                }
-                try {
-                    const response = await fetch('/api/auth/signup', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username, password }),
-                    });
-                    const data = await response.json();
-                    if (response.ok) {
-                        navigate('/login', { signupSuccess: true });
-                    } else {
-                        renderSignup(data.message || '新規登録に失敗しました');
-                    }
-                } catch (err) {
-                    renderSignup('ネットワークエラー: ' + err.message);
-                }
-            };
+        function renderSignup(initialMessage = '', isError = true) {
+            const messageHtml = initialMessage ? `<div class="${isError ? 'error-message' : 'success-message'}">${initialMessage}</div>` : '';
             const html = `
                 <div class="container">
                     <h2 class="text-center mb-4">新規登録</h2>
-                    ${errorMessage ? `<div class="error-message">${errorMessage}</div>` : ''}
+                    ${messageHtml}
                     <form id="signupForm">
-                        <div class="form-group"><label for="username">ユーザー名:</label><input type="text" class="form-control" id="username" name="username" required></div>
-                        <div class="form-group"><label for="password">パスワード:</label><input type="password" class="form-control" id="password" name="password" required minlength="6"><small class="form-text text-muted">6文字以上で入力してください。</small></div>
-                        <div class="form-group"><label for="confirmPassword">パスワード（確認）:</label><input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required minlength="6"></div>
-                        <button type="submit" class="btn btn-primary btn-block">新規登録</button>
+                        <div class="form-group"><label>ユーザー名:</label><input type="text" class="form-control" name="username" required></div>
+                        <div class="form-group"><label>パスワード:</label><input type="password" class="form-control" name="password" required minlength="6"></div>
+                        <div class="form-group"><label>パスワード(確認):</label><input type="password" class="form-control" name="confirmPassword" required minlength="6"></div>
+                        <button type="submit" class="btn btn-primary btn-block">登録</button>
                     </form>
-                    <div class="login-link"><p>すでにアカウントをお持ちですか？ <a href="/login">ログイン</a></p></div>
+                    <div class="text-center mt-3"><p>既にアカウントをお持ちですか？ <a href="/login">ログイン</a></p></div>
                 </div>`;
             render(html);
-            document.getElementById('signupForm').addEventListener('submit', handleSubmit);
-            document.querySelector('.login-link a').addEventListener('click', (e) => { e.preventDefault(); navigate('/login'); });
+            document.getElementById('signupForm').addEventListener('submit', async e => {
+                e.preventDefault();
+                const u = e.target.username.value, p = e.target.password.value, cp = e.target.confirmPassword.value;
+                if(p !== cp) { renderSignup('パスワードが一致しません', true); return; }
+                try {
+                    const res = await fetch('/api/auth/signup', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: u, password: p}) });
+                    if(res.ok) {
+                        navigate('/login', { signupSuccess: true });
+                    } else {
+                        const data = await res.json();
+                        renderSignup(data.message || '登録に失敗しました', true);
+                    }
+                } catch (err) {
+                    renderSignup('ネットワークエラー', true);
+                }
+            });
+            document.querySelector('a[href="/login"]').addEventListener('click', e => { e.preventDefault(); navigate('/login'); });
         }
 
         function renderDashboard() {
@@ -184,388 +133,255 @@
 
         async function renderMyResults() {
             if (!Auth.isAuthenticated()) { navigate('/login'); return; }
-            let myResults = {};
-            let error = '';
+            let myResults = []; let error = '';
             try {
                 const response = await fetch('/api/user/my_results', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
-                if (!response.ok) throw new Error('成績の取得に失敗しました。');
-                myResults = await response.json();
-            } catch (err) {
-                error = err.message;
-            }
-            const chartData = { labels: [], accuracies: [], backgroundColors: [], borderColors: [] };
-            if (Object.keys(myResults).length > 0) {
-                for (const genre in myResults) {
-                    const data = myResults[genre];
-                    if (data.total > 0) {
-                        const accuracy = parseFloat(((data.correct / data.total) * 100).toFixed(2));
-                        chartData.labels.push(genre);
-                        chartData.accuracies.push(accuracy);
-                        if (accuracy >= 80) { chartData.backgroundColors.push('rgba(75, 192, 192, 0.6)'); chartData.borderColors.push('rgba(75, 192, 192, 1)'); }
-                        else if (accuracy >= 50) { chartData.backgroundColors.push('rgba(255, 206, 86, 0.6)'); chartData.borderColors.push('rgba(255, 206, 86, 1)'); }
-                        else { chartData.backgroundColors.push('rgba(255, 99, 132, 0.6)'); chartData.borderColors.push('rgba(255, 99, 132, 1)'); }
-                    }
-                }
-            } else { error = "まだ解答履歴がありません。"; }
+                if (response.ok) { myResults = await response.json(); }
+                else { const data = await response.json(); throw new Error(data.message || '成績の取得に失敗しました。'); }
+            } catch (err) { error = err.message; }
             const html = `
                 <div class="container">
-                    <h1 class="text-center mb-4">${Auth.username}さんの成績</h1>
-                    ${error ? `<div class="alert alert-info text-center">${error}</div>` : ''}
-                    ${chartData.labels.length > 0 ? `<div class="chart-container"><h3 class="text-center mb-3">ジャンル別正答率</h3><canvas id="myAccuracyChart"></canvas></div>` : ''}
-                    <div class="text-center mt-4"><a href="/dashboard" id="backToDashboard" class="btn btn-secondary btn-lg">マイページに戻る</a></div>
+                    <h1 class="text-center mb-4">あなたの成績</h1>
+                    ${error ? `<div class="alert alert-warning">${error}</div>` : ''}
+                    ${myResults.length > 0 ? `<ul class="list-group">${myResults.map(r => `<li class="list-group-item d-flex justify-content-between"><span>${r.title}</span><span class="badge ${r.is_correct ? 'badge-success' : 'badge-danger'}">${r.is_correct ? '正解' : '不正解'}</span></li>`).join('')}</ul>` : '<p class="text-center">まだ解答履歴がありません。</p>'}
+                    <div class="text-center mt-4"><a href="/dashboard" class="btn btn-secondary">マイページに戻る</a></div>
                 </div>`;
             render(html);
-            document.getElementById('backToDashboard').addEventListener('click', e => { e.preventDefault(); navigate('/dashboard'); });
-            if (chartData.labels.length > 0) {
-                const ctx = document.getElementById('myAccuracyChart');
-                if (ctx) {
-                    new Chart(ctx, { type: 'bar', data: { labels: chartData.labels, datasets: [{ label: '正答率 (%)', data: chartData.accuracies, backgroundColor: chartData.backgroundColors, borderColor: chartData.borderColors, borderWidth: 1 }] }, options: { scales: { y: { beginAtZero: true, max: 100 } } } });
-                }
-            }
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/dashboard'); });
         }
-        
+
         function renderAdmin() {
             if (!Auth.isAdmin()) { navigate('/dashboard'); return; }
+            const masterButtonHtml = Auth.isMaster() ? `<button id="registerCompanyBtn" class="btn btn-success">企業・管理者登録</button>` : '';
+            const adminButtonHtml = Auth.isAdmin() ? `<button id="createUserBtn" class="btn btn-primary">受講者登録</button>` : '';
             const html = `
                 <div class="container">
-                    <h1 class="text-center">${Auth.username} の管理者画面</h1>
+                    <h1 class="text-center">${Auth.username} の管理画面</h1><p class="text-center text-muted">役割: ${Auth.role}</p>
                     <div class="tab">
-                        <button id="testButton" class="btn btn-info">テストを実施</button>
-                        <button id="qListButton" class="btn btn-info">テスト一覧・編集</button>
-                        <button id="createQuizButton" class="btn btn-info">テスト作成</button>
-                        <button id="viewResultsButton" class="btn btn-info">テスト結果</button>
+                        ${masterButtonHtml}
+                        ${adminButtonHtml}
                         <button id="userListButton" class="btn btn-secondary">ユーザー一覧</button>
+                        <button id="qListButton" class="btn btn-info">問題一覧 (開発中)</button>
                         <button id="logoutButton" class="btn btn-danger">ログアウト</button>
-                    </div>
-                </div>`;
+                    </div></div>`;
             render(html);
-            document.getElementById('testButton').addEventListener('click', () => navigate('/genre'));
-            document.getElementById('qListButton').addEventListener('click', () => navigate('/q_list'));
-            document.getElementById('createQuizButton').addEventListener('click', () => navigate('/createquiz'));
-            document.getElementById('viewResultsButton').addEventListener('click', () => navigate('/view'));
+            if (Auth.isMaster()) { document.getElementById('registerCompanyBtn').addEventListener('click', () => navigate('/register_company')); }
+            if (Auth.isAdmin()) { document.getElementById('createUserBtn').addEventListener('click', () => navigate('/create_user')); }
             document.getElementById('userListButton').addEventListener('click', () => navigate('/users'));
+            document.getElementById('qListButton').addEventListener('click', () => navigate('/q_list'));
             document.getElementById('logoutButton').addEventListener('click', () => Auth.logout());
         }
 
         async function renderUserList() {
             if (!Auth.isAdmin()) { navigate('/dashboard'); return; }
-            let users = [];
-            let error = '';
+            let users = [], error = '';
             try {
                 const response = await fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
-                if (!response.ok) throw new Error('ユーザーリストの取得に失敗しました。');
+                if (!response.ok) throw new Error('ユーザーリストの取得に失敗');
                 users = await response.json();
             } catch (err) { error = err.message; }
+            const masterAddUserBtn = Auth.isMaster() ? `<a href="/master/create_user" id="masterAddUser" class="btn btn-primary mb-3">受講者を追加</a>` : '';
+            const masterAddMasterBtn = Auth.isMaster() ? `<a href="/master/create_master" id="masterAddMaster" class="btn btn-success mb-3 ml-2">マスターを追加</a>` : '';
             const html = `
                 <div class="container">
                     <h1 class="text-center mb-4">ユーザー一覧</h1>
                     ${error ? `<div class="error-message">${error}</div>` : ''}
-                    ${users.length > 0 ? `
-                        <table class="table table-striped table-bordered">
-                            <thead><tr><th>ID</th><th>ユーザー名</th><th>役割</th><th>登録日時</th></tr></thead>
-                            <tbody>${users.map(user => `<tr><td>${user.id}</td><td>${user.username}</td><td><span class="badge ${user.role === 'admin' ? 'badge-success' : 'badge-secondary'}">${user.role}</span></td><td>${new Date(user.created_at).toLocaleString('ja-JP')}</td></tr>`).join('')}</tbody>
-                        </table>` : '<p class="text-center">ユーザーがいません。</p>'}
-                     <div class="text-center mt-4"><a href="/admin" id="backToAdmin" class="btn btn-secondary">管理者画面に戻る</a></div>
+                    <div class="text-right">${masterAddUserBtn}${masterAddMasterBtn}</div>
+                    <table class="table table-bordered">
+                        <thead><tr><th>ID</th><th>ユーザー名</th><th>役割</th><th>企業名</th><th>登録日時</th><th>操作</th></tr></thead>
+                        <tbody>${users.map(u => `
+                            <tr>
+                                <td>${u.id}</td>
+                                <td>${u.username}</td>
+                                <td><span class="badge ${u.role === 'master' ? 'badge-danger' : (u.role === 'admin' ? 'badge-success' : 'badge-secondary')}">${u.role}</span></td>
+                                <td>${u.company_name || 'N/A'}</td>
+                                <td>${new Date(u.created_at).toLocaleString('ja-JP')}</td>
+                                <td>${Auth.isMaster() && Auth.username !== u.username ? `<button class="btn btn-warning btn-sm reset-password-btn" data-userid="${u.id}" data-username="${u.username}">リセット</button>` : ''}</td>
+                            </tr>`).join('')}</tbody>
+                    </table>
+                    <div class="text-center mt-4"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div>
                 </div>`;
             render(html);
-            document.getElementById('backToAdmin').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); });
-        }
-        
-        async function renderQuestionList() {
-             if (!Auth.isAdmin()) { navigate('/dashboard'); return; }
-            let questions = []; let error = '';
-            try {
-                const response = await fetch('/api/quiz/questions', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
-                if (response.ok) { questions = await response.json(); } else { throw new Error('Failed to fetch'); }
-            } catch (err) { error = '問題の取得に失敗しました。'; }
-            const html = `
-                <div class="container">
-                    <h1 class="text-center mb-4">問題一覧</h1>
-                    ${error ? `<div class="error-message">${error}</div>` : ''}
-                    <ul class="list-group">
-                        ${questions.length > 0 ? questions.map(q => `<li class="list-group-item d-flex justify-content-between align-items-center"><span>${q.Q_no || ''} | ${q.genre} | ${q.title.substring(0, 50)}...</span><button data-id="${q.rowid}" class="edit-button btn btn-sm btn-info ml-2">編集</button></li>`).join('') : '<li class="list-group-item">問題がありません。</li>'}
-                    </ul>
-                    <div class="text-center mt-4"><a href="/createquiz" id="createQuizLink" class="btn btn-primary">問題作成</a> <a href="/admin" id="backToAdmin" class="btn btn-secondary">戻る</a></div>
-                </div>`;
-            render(html);
-            document.querySelectorAll('.edit-button').forEach(b => b.addEventListener('click', e => navigate(`/edit/${e.target.dataset.id}`)));
-            document.getElementById('createQuizLink').addEventListener('click', e => { e.preventDefault(); navigate('/createquiz'); });
-            document.getElementById('backToAdmin').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); });
-        }
-
-        async function renderEditQuestion(questionId) {
-            if (!Auth.isAdmin()) { navigate('/dashboard'); return; }
-            let question = {}; let error = '';
-            try {
-                const response = await fetch(`/api/quiz/questions/${questionId}`, { headers: { 'Authorization': `Bearer ${Auth.token}` } });
-                if(response.ok) { question = await response.json(); } else { throw new Error('Failed to fetch'); }
-            } catch (e) { error = '問題の取得に失敗しました。'; }
-            const handleSubmit = async (event) => {
-                event.preventDefault();
-                const updatedQuestion = { genre: event.target.genre.value, title: event.target.title.value, choices: event.target.choices.value, answer: event.target.answer.value, explanation: event.target.explanation.value };
-                try {
-                    const res = await fetch(`/api/quiz/questions/${questionId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` }, body: JSON.stringify(updatedQuestion) });
-                    if (res.ok) { alert('更新しました'); navigate('/q_list'); } else { throw new Error('Update failed'); }
-                } catch (e) { alert('更新に失敗しました。'); }
-            };
-            const html = `
-                <div class="container">
-                    <h1 class="text-center mb-4">問題編集</h1>
-                    ${error ? `<div class="error-message">${error}</div>` : ''}
-                    <form id="editQuestionForm">
-                        <div class="form-group"><label>問題番号：</label><input type="text" class="form-control" name="Q_no" value="${question.Q_no || ''}" readonly></div>
-                        <div class="form-group"><label>ジャンル：</label><input type="text" class="form-control" name="genre" value="${question.genre || ''}" required></div>
-                        <div class="form-group"><label>問題文：</label><textarea class="form-control" name="title" rows="3" required>${question.title || ''}</textarea></div>
-                        <div class="form-group"><label>選択肢 (例: 選1:選2):</label><input type="text" class="form-control" name="choices" value="${question.choices || ''}" required></div>
-                        <div class="form-group"><label>正解 (例: 選1):</label><input type="text" class="form-control" name="answer" value="${question.answer || ''}" required></div>
-                        <div class="form-group"><label>解説：</label><textarea class="form-control" name="explanation" rows="5">${question.explanation || ''}</textarea></div>
-                        <button type="submit" class="btn btn-primary mt-3 btn-block">保存</button>
-                    </form>
-                    <div class="mt-3 text-center"><a href="/q_list" id="backToListLink" class="btn btn-secondary">戻る</a></div>
-                </div>`;
-            render(html);
-            document.getElementById('editQuestionForm').addEventListener('submit', handleSubmit);
-            document.getElementById('backToListLink').addEventListener('click', (e) => { e.preventDefault(); navigate('/q_list'); });
-        }
-
-        function renderCreateQuiz() {
-            if (!Auth.isAdmin()) { navigate('/dashboard'); return; }
-            let error = '';
-            const handleSubmit = async (event) => {
-                event.preventDefault();
-                const newQuestion = { genre: event.target.genre.value, title: event.target.title.value, choices: event.target.choices.value, answer: event.target.answer.value, explanation: event.target.explanation.value };
-                if (!newQuestion.genre || !newQuestion.title || !newQuestion.choices || !newQuestion.answer) {
-                    renderCreateQuiz('ジャンル、問題文、選択肢、正解は必須です。');
-                    return;
-                }
-                try {
-                    const response = await fetch('/api/quiz/questions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` }, body: JSON.stringify(newQuestion) });
-                    if (response.ok) { alert('問題が作成されました'); navigate('/q_list'); } else { const data = await response.json(); renderCreateQuiz(data.message || '作成に失敗しました'); }
-                } catch (err) { renderCreateQuiz('ネットワークエラー'); }
-            };
-            const html = `
-                <div class="container">
-                    <h1 class="text-center mb-4">問題作成</h1>
-                    ${error ? `<div class="error-message">${error}</div>` : ''}
-                    <form id="createQuizForm">
-                        <div class="form-group"><label>ジャンル：</label><input type="text" class="form-control" name="genre" required></div>
-                        <div class="form-group"><label>問題文：</label><textarea class="form-control" name="title" rows="3" required></textarea></div>
-                        <div class="form-group"><label>選択肢 (例: 選1:選2):</label><input type="text" class="form-control" name="choices" required></div>
-                        <div class="form-group"><label>正解 (例: 選1):</label><input type="text" class="form-control" name="answer" required></div>
-                        <div class="form-group"><label>解説：</label><textarea class="form-control" name="explanation" rows="5"></textarea></div>
-                        <button type="submit" class="btn btn-primary btn-block">作成</button>
-                    </form>
-                    <div class="mt-3 text-center"><a href="/q_list" id="backToListLink" class="btn btn-secondary">戻る</a></div>
-                </div>`;
-            render(html);
-            document.getElementById('createQuizForm').addEventListener('submit', handleSubmit);
-            document.getElementById('backToListLink').addEventListener('click', e => { e.preventDefault(); navigate('/q_list'); });
-        }
-
-        function renderFirstQuestion(state) {
-            if (!Auth.isAuthenticated()) { navigate('/login'); return; }
-            const { category, nanko } = state || {};
-            if (!category || !nanko) { alert('クイズ設定が不正です。'); navigate('/genre'); return; }
-            const html = `
-                <div class="container">
-                    <h1 class="text-center mb-4">これから問題を始めます</h1>
-                    <h2 class="text-center">ジャンル: <span class="badge badge-secondary">${category}</span></h2>
-                    <p class="text-center lead">${nanko}問出題されます。</p>
-                    <div class="text-center mt-5"><button id="startQuizButton" class="btn btn-success btn-lg">クイズを開始する</button></div>
-                    <div class="text-center mt-3"><a href="/genre" class="btn btn-link">クイズ設定に戻る</a></div>
-                </div>`;
-            render(html);
-            document.getElementById('startQuizButton').addEventListener('click', () => navigate('/question', { category, nanko }));
-            document.querySelector('.btn-link').addEventListener('click', e => { e.preventDefault(); navigate('/genre'); });
-        }
-
-        async function renderGenre() {
-            if (!Auth.isAuthenticated()) { navigate('/login'); return; }
-            let genres = {}; let error = '';
-            try {
-                const response = await fetch('/api/quiz/genres', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
-                if (response.ok) { genres = await response.json(); } else { throw new Error('Failed to fetch genres'); }
-            } catch (e) { error = 'ジャンルの取得に失敗しました。'; }
-            
-            const html = `
-                <div class="container">
-                    <h1 class="text-center mb-4">クイズ設定</h1>
-                    ${error ? `<div class="error-message">${error}</div>` : ''}
-                    ${Object.keys(genres).length > 0 ? `<form id="genreForm"><h3 class="mb-3">ジャンル選択:</h3><ul class="list-group mb-4">${Object.entries(genres).map(([g, ids]) => `<li class="list-group-item d-flex justify-content-between align-items-center"><div class="form-check"><input class="form-check-input" type="radio" name="category" id="genre-${g}" value="${g}" data-length="${ids.length}" ${Object.keys(genres)[0] === g ? 'checked' : ''}><label class="form-check-label" for="genre-${g}"><strong>${g}</strong></label></div><span class="badge badge-primary badge-pill">${ids.length}問</span></li>`).join('')}</ul><div class="form-group"><label for="numQuestionsInput">出題数 (1 - <span id="maxQuestions">${Object.values(genres)[0].length}</span>):</label><input type="number" class="form-control" id="numQuestionsInput" value="1" min="1" max="${Object.values(genres)[0].length}"></div><button type="submit" class="btn btn-primary btn-block mt-4">クイズ設定を送信</button></form>` : '<p class="text-center">問題がありません。</p>'}
-                    <div class="text-center mt-3"><a href="${Auth.isAdmin() ? '/admin' : '/dashboard'}" class="btn btn-link">戻る</a></div>
-                </div>`;
-            render(html);
-
-            const genreForm = document.getElementById('genreForm');
-            if(genreForm) {
-                const numQuestionsInput = document.getElementById('numQuestionsInput');
-                const maxQuestionsSpan = document.getElementById('maxQuestions');
-                document.querySelectorAll('input[name="category"]').forEach(radio => {
-                    radio.addEventListener('change', e => {
-                        const len = e.target.dataset.length;
-                        maxQuestionsSpan.textContent = len;
-                        numQuestionsInput.max = len;
-                        if (parseInt(numQuestionsInput.value) > len) numQuestionsInput.value = len;
+            if (Auth.isMaster()) {
+                if(document.getElementById('masterAddUser')) document.getElementById('masterAddUser').addEventListener('click', e => { e.preventDefault(); navigate('/master/create_user'); });
+                if(document.getElementById('masterAddMaster')) document.getElementById('masterAddMaster').addEventListener('click', e => { e.preventDefault(); navigate('/master/create_master'); });
+                document.querySelectorAll('.reset-password-btn').forEach(button => {
+                    button.addEventListener('click', e => {
+                        renderResetPasswordModal(e.target.dataset.userid, e.target.dataset.username);
                     });
                 });
-                genreForm.addEventListener('submit', e => {
-                    e.preventDefault();
-                    const category = document.querySelector('input[name="category"]:checked').value;
-                    const nanko = parseInt(numQuestionsInput.value);
-                    if (nanko > 0 && nanko <= parseInt(numQuestionsInput.max)) {
-                        navigate('/firstquestion', { category, nanko });
-                    } else { alert('出題数を正しく入力してください。'); }
-                });
             }
-            document.querySelector('.btn-link').addEventListener('click', e => { e.preventDefault(); navigate(Auth.isAdmin() ? '/admin' : '/dashboard'); });
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); });
         }
-
-        function renderKekka(state) {
-            if (!Auth.isAuthenticated()) { navigate('/login'); return; }
-            const { resultData, questionData } = state || {};
-            if (!resultData || !questionData) { render('結果データがありません'); return; }
-            const isLastQuestion = currentQuestionIndex >= currentQuestions.length - 1;
+        
+        function renderRegisterCompany(initialMessage = '', isError = false) {
+            if (!Auth.isMaster()) { navigate('/admin'); return; }
+            const handleSubmit = async (event) => {
+                event.preventDefault();
+                const company_name = event.target.company_name.value, admin_username = event.target.admin_username.value, admin_password = event.target.admin_password.value;
+                try {
+                    const response = await fetch('/api/master/register_company', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` }, body: JSON.stringify({ company_name, admin_username, admin_password }) });
+                    const data = await response.json();
+                    renderRegisterCompany(data.message || '処理完了', !response.ok);
+                } catch (err) { renderRegisterCompany('ネットワークエラー', true); }
+            };
             const html = `
                 <div class="container">
-                    <div class="card-header text-center p-3 mb-3 bg-primary text-white"><h3 class="mb-0">結果</h3></div>
-                    <div class="card-body">
-                        <div style="color: ${resultData.answer.includes('正解') ? 'green' : 'red'}; font-size: 2em; text-align: center;">${resultData.answer.includes('正解') ? '🎉 正解！' : '残念！不正解...'}</div>
-                        <p>あなたの選択: ${resultData.user_choice.join(', ')}</p>
-                        <p>正解: ${resultData.correct_ans.join(', ')}</p>
-                        ${questionData.explanation ? `<h4>解説</h4><p>${questionData.explanation}</p>` : ''}
-                        <p class="text-muted">経過時間: ${parseFloat(resultData.elapsed_time).toFixed(2)}秒</p>
-                        <div class="d-flex justify-content-between mt-4">
-                            <button id="nextQuestionButton" class="btn btn-primary btn-lg">${isLastQuestion ? 'クイズを終了する' : '次の問題へ'}</button>
-                            <a href="${Auth.isAdmin() ? '/view' : '/my_results'}" class="btn btn-secondary btn-lg" id="viewResultsLink">結果一覧へ</a>
-                        </div>
-                    </div>
+                    <h2 class="text-center mb-4">企業・管理者登録</h2>
+                    ${initialMessage ? `<div class="${isError ? 'error-message' : 'success-message'}">${initialMessage}</div>` : ''}
+                    <form id="registerCompanyForm">
+                        <div class="form-group"><label>企業名:</label><input type="text" class="form-control" name="company_name" required></div>
+                        <div class="form-group"><label>管理者 ユーザー名:</label><input type="text" class="form-control" name="admin_username" required></div>
+                        <div class="form-group"><label>管理者 初期パスワード:</label><input type="password" class="form-control" name="admin_password" required></div>
+                        <button type="submit" class="btn btn-primary btn-block">登録</button>
+                    </form>
+                    <div class="text-center mt-3"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div>
                 </div>`;
             render(html);
-            document.getElementById('nextQuestionButton').addEventListener('click', () => {
-                if (isLastQuestion) { navigate(Auth.isAdmin() ? '/admin' : '/dashboard'); } 
-                else { currentQuestionIndex++; navigate('/question'); }
-            });
-            document.getElementById('viewResultsLink').addEventListener('click', e => { e.preventDefault(); navigate(Auth.isAdmin() ? '/view' : '/my_results'); });
-        }
-
-        async function renderView() {
-            if (!Auth.isAdmin()) { navigate('/dashboard'); return; }
-            let results = {}; let error = '';
-            try {
-                const response = await fetch('/api/admin/results', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
-                if (response.ok) { results = await response.json(); } else { throw new Error('Failed to fetch results'); }
-            } catch (e) { error = '結果の取得に失敗しました。'; }
-            const chartDataByUser = {};
-            if (Object.keys(results).length > 0) {
-                // Chart data processing...
-            }
-            const html = `
-                <div class="container">
-                    <h1 class="text-center mb-4">正答率の結果</h1>
-                    ${error ? `<div class="error-message">${error}</div>` : ''}
-                    <div class="mt-4">
-                        <h2 class="text-center mb-3">名前とジャンル別正答率</h2>
-                        ${Object.keys(results).length > 0 ? `<table class="table table-bordered"><thead><tr><th>ユーザー名</th><th>ジャンル</th><th>正答率</th><th>正解/総数</th><th>ミスした問題</th></tr></thead><tbody>${Object.entries(results).map(([name, genres]) => Object.entries(genres).map(([g, data]) => `<tr><td>${name}</td><td>${g}</td><td>${((data.correct / data.total) * 100 || 0).toFixed(1)}%</td><td>${data.correct}/${data.total}</td><td>${data.error.map(id => `<a href="/admin/retry/${id}" data-id="${id}" data-genre="${g}" class="retry-link">${id}</a>`).join(', ') || 'なし'}</td></tr>`).join('')).join('')}</tbody></table>` : '<p>データがありません</p>'}
-                    </div>
-                    <div id="charts-container"></div>
-                    <div class="text-center mt-4"><a href="/admin" class="btn btn-secondary btn-lg">戻る</a></div>
-                </div>`;
-            render(html);
-            // Chart rendering logic...
-            document.querySelectorAll('.retry-link').forEach(link => {
-                link.addEventListener('click', e => { e.preventDefault(); handleRetryQuestion(e.target.dataset.id, e.target.dataset.genre); });
-            });
+            document.getElementById('registerCompanyForm').addEventListener('submit', handleSubmit);
             document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); });
         }
 
-        let currentQuestions = []; let currentQuestionIndex = 0; let selectedChoices = []; let quizStartTime = null; let currentQuizConfig = { category: '', nanko: 0 };
-        async function renderQuestion(state) {
-            if (!Auth.isAuthenticated()) { navigate('/login'); return; }
-            const { category, nanko, resetQuiz, retriedQuestionData } = state || currentQuizConfig;
-            let error = '';
-            if (resetQuiz || currentQuestions.length === 0) {
+        function renderCreateUser(initialMessage = '', isError = false) {
+            if (!Auth.isAdmin()) { navigate('/dashboard'); return; }
+            const handleSubmit = async (event) => {
+                event.preventDefault();
+                const username = event.target.username.value, password = event.target.password.value;
                 try {
-                    currentQuestions = retriedQuestionData ? [retriedQuestionData] : await (async () => {
-                        const res = await fetch(`/api/quiz/get_random_questions?genre=${category}&count=${nanko}`, { headers: { 'Authorization': `Bearer ${Auth.token}` } });
-                        if(!res.ok) throw new Error();
-                        return await res.json();
-                    })();
-                    if (currentQuestions.length === 0) throw new Error('No questions found');
-                    currentQuestionIndex = 0;
-                    currentQuizConfig = { category, nanko };
-                } catch (e) { error = '問題の取得に失敗しました'; render(`<div class="error-message">${error}</div>`); return; }
-            }
-            if (currentQuestionIndex >= currentQuestions.length) { navigate(Auth.isAdmin() ? '/admin' : '/dashboard'); return; }
-            
-            const q = currentQuestions[currentQuestionIndex];
-            selectedChoices = [];
-            quizStartTime = new Date();
-            const choices = (q.choices || "").split(':').filter(c => c);
-
-            const handleSubmit = async () => {
-                if (selectedChoices.length === 0) { alert('選択肢を選んでください'); return; }
-                const payload = { user_choice: selectedChoices, correct_ans: (q.correct_ans || q.answer).split(':'), start_datetime: quizStartTime.toISOString(), username: Auth.username, genre: q.genre, qmap: q.Q_no, question_id: q.rowid || q.question_id, kaisetsu: q.explanation || q.kaisetsu };
-                try {
-                    const res = await fetch('/api/quiz/check_answer', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` }, body: JSON.stringify(payload) });
-                    if (!res.ok) throw new Error();
-                    const resultData = await res.json();
-                    navigate('/kekka', { resultData, questionData: q });
-                } catch (e) { alert('解答の送信に失敗しました'); }
+                    const response = await fetch('/api/admin/create_user', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` }, body: JSON.stringify({ username, password }) });
+                    const data = await response.json();
+                    renderCreateUser(data.message || '処理完了', !response.ok);
+                } catch (err) { renderCreateUser('ネットワークエラー', true); }
             };
-            
             const html = `
-                <div class="container"><h1 class="text-center mb-4">問題 ${currentQuestionIndex + 1}/${currentQuestions.length}</h1><div class="card mt-4"><div class="card-header bg-info text-white">ジャンル: ${q.genre}</div><div class="card-body"><h4 class="card-title mb-4">${q.title || q.question}</h4><div class="form-group">${choices.map((c, i) => `<div class="form-check"><input type="checkbox" class="form-check-input" id="c${i}" value="${c}"><label class="form-check-label" for="c${i}">${c}</label></div>`).join('')}</div><button id="submitAnswerBtn" class="btn btn-primary mt-4 btn-block">解答する</button></div></div></div>`;
+                <div class="container">
+                    <h2 class="text-center mb-4">受講者 登録</h2>
+                    ${initialMessage ? `<div class="${isError ? 'error-message' : 'success-message'}">${initialMessage}</div>` : ''}
+                    <form id="createUserForm">
+                        <div class="form-group"><label>ユーザー名:</label><input type="text" class="form-control" name="username" required></div>
+                        <div class="form-group"><label>初期パスワード:</label><input type="password" class="form-control" name="password" required></div>
+                        <button type="submit" class="btn btn-primary btn-block">登録</button>
+                    </form>
+                    <div class="text-center mt-3"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div>
+                </div>`;
             render(html);
-            document.querySelectorAll('.form-check-input').forEach(box => box.addEventListener('change', e => {
-                if(e.target.checked) selectedChoices.push(e.target.value);
-                else selectedChoices = selectedChoices.filter(c => c !== e.target.value);
-            }));
-            document.getElementById('submitAnswerBtn').addEventListener('click', handleSubmit);
+            document.getElementById('createUserForm').addEventListener('submit', handleSubmit);
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); });
+        }
+        
+        async function renderMasterCreateUser(initialMessage = '', isError = false) {
+            if (!Auth.isMaster()) { navigate('/admin'); return; }
+            let companies = [];
+            try {
+                const response = await fetch('/api/master/companies', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
+                if (response.ok) companies = await response.json();
+            } catch (err) {}
+            const handleSubmit = async (event) => {
+                event.preventDefault();
+                const username = event.target.username.value, password = event.target.password.value, company_id = event.target.company_id.value;
+                try {
+                    const response = await fetch('/api/master/create_user', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` }, body: JSON.stringify({ username, password, company_id }) });
+                    const data = await response.json();
+                    renderMasterCreateUser(data.message || '処理完了', !response.ok);
+                } catch (err) { renderMasterCreateUser('ネットワークエラー', true); }
+            };
+            const html = `
+                <div class="container">
+                    <h2 class="text-center mb-4">受講者 新規登録 (Master用)</h2>
+                    ${initialMessage ? `<div class="${isError ? 'error-message' : 'success-message'}">${initialMessage}</div>` : ''}
+                    <form id="masterCreateUserForm">
+                        <div class="form-group"><label for="company_id">所属企業:</label><select class="form-control" name="company_id" required><option value="">選択してください</option>${companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+                        <div class="form-group"><label>ユーザー名:</label><input type="text" class="form-control" name="username" required></div>
+                        <div class="form-group"><label>初期パスワード:</label><input type="password" class="form-control" name="password" required></div>
+                        <button type="submit" class="btn btn-primary btn-block">登録</button>
+                    </form>
+                    <div class="text-center mt-3"><a href="/users" class="btn btn-secondary">ユーザー一覧に戻る</a></div>
+                </div>`;
+            render(html);
+            document.getElementById('masterCreateUserForm').addEventListener('submit', handleSubmit);
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/users'); });
         }
 
-        async function handleRetryQuestion(questionId, genre) {
-            if (!Auth.isAdmin()) { return; }
-            try {
-                const response = await fetch(`/api/admin/retry/${questionId}?genre=${genre}`, { headers: { 'Authorization': `Bearer ${Auth.token}` } });
-                if (!response.ok) throw new Error();
-                const data = await response.json();
-                navigate('/question', { category: genre, nanko: 1, resetQuiz: true, retriedQuestionData: data });
-            } catch (e) { alert('問題の再取得に失敗しました'); }
+        function renderMasterCreateMaster(initialMessage = '', isError = false) {
+            if (!Auth.isMaster()) { navigate('/admin'); return; }
+            const handleSubmit = async (event) => {
+                event.preventDefault();
+                const username = event.target.username.value, password = event.target.password.value;
+                try {
+                    const response = await fetch('/api/master/create_master', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` }, body: JSON.stringify({ username, password }) });
+                    const data = await response.json();
+                    renderMasterCreateMaster(data.message || '処理完了', !response.ok);
+                } catch (err) { renderMasterCreateMaster('ネットワークエラー', true); }
+            };
+            const html = `
+                <div class="container">
+                    <h2 class="text-center mb-4">マスターユーザー 新規登録</h2>
+                    ${initialMessage ? `<div class="${isError ? 'error-message' : 'success-message'}">${initialMessage}</div>` : ''}
+                    <form id="masterCreateMasterForm">
+                        <div class="form-group"><label>ユーザー名:</label><input type="text" class="form-control" name="username" required></div>
+                        <div class="form-group"><label>初期パスワード:</label><input type="password" class="form-control" name="password" required></div>
+                        <button type="submit" class="btn btn-primary btn-block">登録</button>
+                    </form>
+                    <div class="text-center mt-3"><a href="/users" class="btn btn-secondary">ユーザー一覧に戻る</a></div>
+                </div>`;
+            render(html);
+            document.getElementById('masterCreateMasterForm').addEventListener('submit', handleSubmit);
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/users'); });
+        }
+
+        function renderResetPasswordModal(userId, username, message = '', isError = false) {
+            const modalContainer = document.getElementById('modal-container');
+            const handleSubmit = async (event) => {
+                event.preventDefault();
+                const new_password = event.target.new_password.value;
+                if (!new_password) { renderResetPasswordModal(userId, username, '新しいパスワードを入力してください。', true); return; }
+                try {
+                    const response = await fetch('/api/master/reset_password', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` }, body: JSON.stringify({ user_id: parseInt(userId), new_password }) });
+                    const data = await response.json();
+                    renderResetPasswordModal(userId, username, data.message || '処理完了', !response.ok);
+                } catch (err) { renderResetPasswordModal(userId, username, 'ネットワークエラー', true); }
+            };
+            const closeModal = () => { modalContainer.innerHTML = ''; };
+            const html = `
+                <div id="resetModal" class="modal" style="display: block;">
+                    <div class="modal-content">
+                        <span class="close-button" id="closeModalBtn">&times;</span>
+                        <h4>${username} のパスワードをリセット</h4>
+                        ${message ? `<div class="${isError ? 'error-message' : 'success-message'}">${message}</div>` : ''}
+                        <form id="resetPasswordForm">
+                            <div class="form-group">
+                                <label>新しいパスワード:</label>
+                                <input type="password" class="form-control" name="new_password" required>
+                            </div>
+                            <button type="submit" class="btn btn-warning btn-block">パスワードを更新</button>
+                        </form>
+                    </div>
+                </div>`;
+            modalContainer.innerHTML = html;
+            document.getElementById('resetPasswordForm').addEventListener('submit', handleSubmit);
+            document.getElementById('closeModalBtn').addEventListener('click', closeModal);
         }
 
         // --- ルーティングロジック ---
         function handleRouting() {
             const path = window.location.pathname;
-            const state = history.state;
             if (!Auth.isAuthenticated() && path !== '/login' && path !== '/signup') { navigate('/login'); return; }
             switch (true) {
-                case path === '/login' || path === '/':
-                    if (Auth.isAuthenticated()) { navigate(Auth.isAdmin() ? '/admin' : '/dashboard'); return; }
-                    renderLogin(state ? state.error : '');
-                    break;
-                case path === '/signup':
-                    if (Auth.isAuthenticated()) { navigate(Auth.isAdmin() ? '/admin' : '/dashboard'); return; }
-                    renderSignup(state ? state.error : '');
-                    break;
+                case path === '/login' || path === '/': renderLogin(); break;
+                case path === '/signup': renderSignup(); break;
                 case path === '/dashboard': renderDashboard(); break;
                 case path === '/my_results': renderMyResults(); break;
-                case path === '/users': renderUserList(); break;
                 case path === '/admin': renderAdmin(); break;
-                case path === '/q_list': renderQuestionList(); break;
-                case path === '/createquiz': renderCreateQuiz(); break;
-                case path === '/genre': renderGenre(); break;
-                case path === '/firstquestion': renderFirstQuestion(state); break;
-                case path === '/question': renderQuestion(state); break;
-                case path === '/kekka': renderKekka(state); break;
-                case path === '/view': renderView(); break;
-                case path.startsWith('/edit/'):
-                    renderEditQuestion(path.split('/')[2]);
-                    break;
-                case path.startsWith('/admin/retry/'):
-                    renderQuestion(state);
-                    break;
+                case path === '/users': renderUserList(); break;
+                case path === '/register_company': renderRegisterCompany(); break;
+                case path === '/create_user': renderCreateUser(); break;
+                case path === '/master/create_user': renderMasterCreateUser(); break;
+                case path === '/master/create_master': renderMasterCreateMaster(); break;
+                // 注意：以下のクイズ関連のルートはまだ新しいDB構造に対応していません
+                case path === '/q_list': render('<div>問題一覧ページ（現在開発中）<br><a href="/admin">戻る</a></div>'); break;
+                case path === '/genre': render('<div>ジャンル選択ページ（現在開発中）<br><a href="/dashboard">戻る</a></div>'); break;
                 default:
-                    render(`<div>404 Not Found</div>`);
+                    render('<div>404 Not Found</div>');
                     break;
             }
         }
