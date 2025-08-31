@@ -1,18 +1,17 @@
-from flask import Blueprint, jsonify, request, g, abort, current_app
+from flask import Blueprint, jsonify, request, g, current_app
 import sqlite3
 import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone 
 import logging
-import random
 import json
-import os
+import random
 from .db import query_db, execute_db, get_db
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-# --- 認証/認可ヘルパー関数（デコレータ） ---
+# --- 認証/認可ヘルパー関数 ---
 def auth_required(f):
     from functools import wraps
     @wraps(f)
@@ -34,7 +33,7 @@ def auth_required(f):
             return jsonify({'message': 'Token is invalid or expired!'}), 401
         except Exception as e:
             logger.error(f"Authentication error: {e}", exc_info=True)
-            return jsonify({'message': 'An unexpected error occurred during authentication.'}), 500
+            return jsonify({'message': 'An unexpected error occurred.'}), 500
         return f(*args, **kwargs)
     return decorated_function
 
@@ -42,10 +41,11 @@ def roles_required(roles):
     def decorator(f):
         from functools import wraps
         @wraps(f)
+        # ★★★ 修正箇所: デコレータをここ（内側）に移動 ★★★
         @auth_required
         def decorated_function(*args, **kwargs):
             if not hasattr(g, 'current_user_role') or g.current_user_role not in roles:
-                return jsonify({'message': 'Permission denied: Insufficient role.'}), 403
+                return jsonify({'message': 'Permission denied.'}), 403
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -64,7 +64,6 @@ def signup():
     role = 'master' if user_count == 0 else 'user'
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     execute_db('INSERT INTO users (username, password_hash, role, company_id) VALUES (?, ?, ?, ?)', [username, hashed_password, role, None])
-    logger.info(f"User '{username}' created successfully with role '{role}'.")
     return jsonify({'message': 'User created'}), 201
 
 @api_bp.route('/auth/login', methods=['POST'])
@@ -80,15 +79,88 @@ def login():
     else:
         return jsonify({'message': 'Invalid credentials'}), 401
 
-# --- ユーザー専用API ---
-@api_bp.route('/user/my_results', methods=['GET'])
-@auth_required
-def get_my_results():
-    query = "SELECT q.title, r.is_correct FROM results r JOIN questions q ON r.question_id = q.id WHERE r.user_id = ? "
-    results = query_db(query, [g.current_user_id])
-    return jsonify([dict(row) for row in results])
+# --- 問題管理API (マスター・管理者用) ---
+@api_bp.route('/questions', methods=['POST'])
+@roles_required(['master', 'admin'])
+def create_question():
+    data = request.get_json()
+    genre, title, choices, answer = data.get('genre'), data.get('title'), data.get('choices'), data.get('answer')
+    if not all([genre, title, choices, answer]):
+        return jsonify({'message': 'Genre, Title, Choices, and Answer are required'}), 400
+    
+    company_id = g.current_user_company_id if g.current_user_role == 'admin' else None
+    try:
+        execute_db("INSERT INTO questions (creator_id, company_id, genre, title, choices, answer, explanation) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                   [g.current_user_id, company_id, genre, title, choices, answer, data.get('explanation', '')])
+        return jsonify({'message': 'Question created successfully'}), 201
+    except sqlite3.Error as e:
+        return jsonify({'message': f'Database error: {e}'}), 500
 
-# --- 管理API ---
+# --- クイズ実施API ---
+@api_bp.route('/quiz/genres', methods=['GET'])
+@auth_required
+def get_quiz_genres():
+    company_id = g.current_user_company_id
+    query = "SELECT DISTINCT genre FROM questions WHERE company_id IS NULL"
+    params = []
+    if company_id:
+        query += " OR company_id = ?"
+        params.append(company_id)
+    try:
+        genres_rows = query_db(query, params)
+        all_genres = set()
+        for row in genres_rows:
+            genres = [g.strip() for g in row['genre'].split(':') if g.strip()]
+            all_genres.update(genres)
+        return jsonify(sorted(list(all_genres)))
+    except sqlite3.Error as e:
+        return jsonify({'message': f'Database error: {e}'}), 500
+
+@api_bp.route('/quiz/start', methods=['GET'])
+@auth_required
+def start_quiz():
+    genre = request.args.get('genre')
+    count = request.args.get('count', type=int)
+    if not all([genre, count]):
+        return jsonify({'message': 'Genre and count parameters are required'}), 400
+    company_id = g.current_user_company_id
+    query = "SELECT id, title, choices FROM questions WHERE genre LIKE ? AND (company_id IS NULL"
+    params = [f"%{genre}%"]
+    if company_id:
+        query += " OR company_id = ?)"
+        params.append(company_id)
+    else:
+        query += ")"
+    try:
+        available_questions = query_db(query, params)
+        if not available_questions: return jsonify({'message': 'No questions found for this genre.'}), 404
+        selected_count = min(count, len(available_questions))
+        questions_to_send = random.sample(available_questions, selected_count)
+        return jsonify([dict(row) for row in questions_to_send])
+    except sqlite3.Error as e:
+        return jsonify({'message': f'Database error: {e}'}), 500
+
+@api_bp.route('/quiz/submit_answer', methods=['POST'])
+@auth_required
+def submit_answer():
+    data = request.get_json()
+    question_id, user_answer_list = data.get('question_id'), data.get('user_answer')
+    if question_id is None or user_answer_list is None:
+        return jsonify({'message': 'question_id and user_answer are required'}), 400
+    question = query_db("SELECT answer, explanation FROM questions WHERE id = ?", [question_id], one=True)
+    if not question: return jsonify({'message': 'Question not found'}), 404
+    correct_answer_set = set(ans.strip() for ans in question['answer'].split(':'))
+    user_answer_set = set(ans.strip() for ans in user_answer_list)
+    is_correct = (user_answer_set == correct_answer_set)
+    user_answer_str = json.dumps(user_answer_list, ensure_ascii=False)
+    try:
+        execute_db("INSERT INTO results (user_id, question_id, user_answer, is_correct) VALUES (?, ?, ?, ?)",
+                   [g.current_user_id, question_id, user_answer_str, is_correct])
+        return jsonify({'is_correct': is_correct, 'correct_answer': list(correct_answer_set), 'explanation': question['explanation']}), 200
+    except sqlite3.Error as e:
+        return jsonify({'message': 'Failed to save result'}), 500
+
+# --- ユーザー & 企業管理API ---
 @api_bp.route('/admin/users', methods=['GET'])
 @roles_required(['master', 'admin'])
 def get_users():
@@ -114,7 +186,7 @@ def create_user():
     try:
         execute_db('INSERT INTO users (company_id, username, password_hash, role) VALUES (?, ?, ?, ?)', [company_id, username, hashed_password, 'user'])
         return jsonify({'message': 'User created successfully'}), 201
-    except sqlite3.Error as e:
+    except sqlite3.Error:
         return jsonify({'message': 'Database error occurred'}), 500
 
 # --- マスター管理者用API ---
@@ -135,7 +207,7 @@ def register_company():
         cursor.execute('INSERT INTO users (company_id, username, password_hash, role) VALUES (?, ?, ?, ?)', [new_company_id, admin_username, hashed_password, 'admin'])
         db.commit()
         return jsonify({'message': 'Company and admin user created successfully'}), 201
-    except sqlite3.Error as e:
+    except sqlite3.Error:
         get_db().rollback()
         return jsonify({'message': 'Database error occurred'}), 500
 
@@ -177,25 +249,17 @@ def create_master():
     except sqlite3.Error:
         return jsonify({'message': 'Database error occurred'}), 500
 
-# ★★★ 新規追加: パスワードリセットAPI ★★★
 @api_bp.route('/master/reset_password', methods=['POST'])
 @roles_required(['master'])
 def reset_password():
     data = request.get_json()
-    user_id = data.get('user_id')
-    new_password = data.get('new_password')
-
-    if not all([user_id, new_password]):
-        return jsonify({'message': 'user_id and new_password are required'}), 400
-
+    user_id, new_password = data.get('user_id'), data.get('new_password')
+    if not all([user_id, new_password]): return jsonify({'message': 'user_id and new_password are required'}), 400
     if not query_db('SELECT id FROM users WHERE id = ?', [user_id], one=True):
         return jsonify({'message': 'User not found'}), 404
-    
     hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
     try:
         execute_db('UPDATE users SET password_hash = ? WHERE id = ?', [hashed_password, user_id])
-        logger.info(f"Master '{g.current_username}' reset password for user_id {user_id}.")
         return jsonify({'message': 'Password reset successfully'}), 200
     except sqlite3.Error as e:
-        logger.error(f"Failed to reset password for user {user_id} by master '{g.current_username}': {e}", exc_info=True)
         return jsonify({'message': 'Database error occurred'}), 500

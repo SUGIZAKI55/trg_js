@@ -1,20 +1,14 @@
 /* データベースの設計図 (スキーマ) */
 
--- 既存のテーブルがあれば念のため削除（初回起動時のみ有効）
-DROP TABLE IF EXISTS results;
-DROP TABLE IF EXISTS questions;
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS companies;
-
--- 企業テーブル
-CREATE TABLE companies (
+-- 企業テーブル (存在しない場合のみ作成)
+CREATE TABLE IF NOT EXISTS companies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- ユーザーテーブル
-CREATE TABLE users (
+-- ユーザーテーブル (存在しない場合のみ作成)
+CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id INTEGER,
     username TEXT UNIQUE NOT NULL,
@@ -24,10 +18,12 @@ CREATE TABLE users (
     FOREIGN KEY (company_id) REFERENCES companies (id)
 );
 
--- 問題テーブル
-CREATE TABLE questions (
+-- 問題テーブル (存在しない場合のみ作成)
+CREATE TABLE IF NOT EXISTS questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     creator_id INTEGER NOT NULL,
+    company_id INTEGER,
+    genre TEXT NOT NULL,
     title TEXT NOT NULL,
     choices TEXT NOT NULL,
     answer TEXT NOT NULL,
@@ -36,8 +32,8 @@ CREATE TABLE questions (
     FOREIGN KEY (creator_id) REFERENCES users (id)
 );
 
--- 解答結果テーブル
-CREATE TABLE results (
+-- 解答結果テーブル (存在しない場合のみ作成)
+CREATE TABLE IF NOT EXISTS results (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     question_id INTEGER NOT NULL,
