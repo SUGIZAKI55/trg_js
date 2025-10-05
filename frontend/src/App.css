@@ -1,42 +1,77 @@
+/* ------------------------------------------- */
+/* App.css: アプリケーション全体のレイアウトとカスタム要素の定義 */
+/* ------------------------------------------- */
+
+/* 画面中央寄せの強制（index.cssのbodyを補完） */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 0; /* 上下にパディングを追加 */
+}
+
+/* ------------------ 管理画面（AdminDashboard）のレイアウト ------------------ */
+
+.dashboard-container {
+  max-width: 800px;
+  width: 90%;
+  margin-top: 2rem;
   padding: 2rem;
-  text-align: center;
+  background-color: var(--dashboard-bg, #ffffff); /* ライトモードの背景 */
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.dashboard-button-grid {
+  display: grid;
+  /* 画面幅に応じてボタンを自動配置 */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+  gap: 15px; /* ボタン間のスペース */
+  margin-top: 30px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* ------------------ カスタムボタンの定義 ------------------ */
+
+/* デフォルトボタンの見た目を上書き */
+.dashboard-button {
+  padding: 1.5em 1em; /* 大きくする */
+  font-size: 1.05em;
+  font-weight: 700;
+  color: white;
+  border-radius: 8px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: none;
+}
+
+.dashboard-button:hover {
+  transform: translateY(-3px); /* 浮き上がり強調 */
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* 個別カラーの定義 */
+/* 企業・管理者登録 (成功色: グリーン) */
+.btn-success { background-color: #28a745; }
+.btn-success:hover { background-color: #1e7e34; }
+
+/* 受講者登録 (プライマリ色: ブルー) */
+.btn-primary { background-color: #007bff; }
+.btn-primary:hover { background-color: #0056b3; }
+
+/* ユーザー一覧/問題管理 (情報色: インフォ) */
+.btn-info { background-color: #17a2b8; }
+.btn-info:hover { background-color: #117a8b; }
+
+/* ログアウト (危険色: レッド) */
+.btn-danger { background-color: #dc3545; }
+.btn-danger:hover { background-color: #a71d2a; }
+
+/* ------------------ ダークモード対応 ------------------ */
+
+@media (prefers-color-scheme: dark) {
+  /* グローバルスタイルと連携し、ダークモードの背景色を適用 */
+  :root {
+    --dashboard-bg: #1e1e1e; /* ダークモードのダッシュボード背景 */
   }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
 }

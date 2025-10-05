@@ -1,11 +1,12 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  /* 明るい背景を基本に設定（ライトモードを優先） */
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.6; /* 行間を広げて読みやすく */
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: #1a1a1a; /* ベースの文字色を濃く */
+  background-color: #f7f9fa; /* ややオフホワイトの背景 */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,56 +14,91 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
+/* ------------------ レイアウトの改善 ------------------ */
 
 body {
   margin: 0;
   display: flex;
-  place-items: center;
-  min-width: 320px;
+  /* 画面中央にコンテンツを配置し、最小幅を設定 */
+  justify-content: center;
+  align-items: center;
+  min-width: 100vw; /* 画面幅いっぱいに */
   min-height: 100vh;
+  /* アプリケーションのコンテンツを制限する最大幅を設定 */
+  padding: 2rem;
+  box-sizing: border-box; 
 }
+
+/* ------------------ タイポグラフィとリンク ------------------ */
 
 h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  font-size: 2.8em; /* ややサイズダウンし、落ち着いた印象に */
+  line-height: 1.2;
+  font-weight: 700; /* 太字を強調 */
+  color: #334155; /* 濃いめの見出し色 */
+  margin-bottom: 0.5em;
 }
 
+a {
+  font-weight: 600;
+  color: #0d6efd; /* Bootstrapのプライマリカラーのような鮮やかな青 */
+  text-decoration: none; /* デフォルトの下線を削除 */
+  transition: color 0.3s ease-out; /* ホバー時にスムーズな変化 */
+}
+a:hover {
+  color: #0a58ca;
+  text-decoration: underline; /* ホバーで下線を表示 */
+}
+
+/* ------------------ ボタンの改善 ------------------ */
+
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
+  border-radius: 6px;
+  border: none; /* 枠線を削除し、フラットデザインに */
+  padding: 0.75em 1.5em; /* パディングを増やして押しやすく */
+  font-size: 0.95em;
+  font-weight: 600;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #0d6efd; /* プライマリカラーの背景 */
+  color: #ffffff; /* 白抜き文字 */
   cursor: pointer;
-  transition: border-color 0.25s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* わずかな影で立体感を */
+  transition: background-color 0.3s ease, transform 0.1s ease;
 }
 button:hover {
-  border-color: #646cff;
+  background-color: #0b5ed7; /* ホバーで少し暗く */
+  transform: translateY(-1px); /* わずかに浮き上がるアニメーション */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: 4px solid rgba(13, 110, 253, 0.5); /* フォーカスリングを目立たせる */
+  outline-offset: 2px;
 }
 
-@media (prefers-color-scheme: light) {
+/* ------------------ ダークモードの調整 ------------------ */
+
+@media (prefers-color-scheme: dark) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    color: #e0e0e0; /* 明るい文字色 */
+    background-color: #121212; /* より深い背景色 */
+  }
+  h1 {
+    color: #ffffff;
+  }
+  a {
+    color: #4a90e2;
   }
   a:hover {
-    color: #747bff;
+    color: #5aa1e7;
   }
   button {
-    background-color: #f9f9f9;
+    background-color: #304e6c; /* ダークモードでも目立つボタン色 */
+    color: #ffffff;
+    box-shadow: none;
+  }
+  button:hover {
+    background-color: #406b94;
+    transform: none; /* ダークモードでは浮き上がりアニメーションをオフ */
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,12 +13,20 @@ const RegisterCompany: React.FC = () => {
     const [isError, setIsError] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
-    // ログイン中のユーザーがmaster権限を持っているかチェック
+    // ★★★ 修正箇所: 権限チェックとリダイレクトを useEffect 内に移動 ★★★
+    useEffect(() => {
+        // authが存在しない、または権限がmasterではない場合
+        if (!auth || auth.role !== 'master') {
+            // 管理画面にリダイレクト。replace: true でブラウザ履歴を汚さないようにする
+            navigate('/admin', { replace: true });
+        }
+    }, [auth, navigate]); // auth または navigate が変更されたときに実行
+
+    // 権限チェックが完了する前や、リダイレクト処理中にコンポーネントが不要なレンダリングを行うのを防ぐ
     if (!auth || auth.role !== 'master') {
-        // 権限がない場合は管理画面にリダイレクト
-        navigate('/admin');
-        return null; // コンポーネントをレンダリングしない
+        return null;
     }
+    // ★★★ 修正箇所ここまで ★★★
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -31,6 +39,7 @@ const RegisterCompany: React.FC = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    // トークンをヘッダーに含める
                     'Authorization': `Bearer ${auth.token}`,
                 },
                 body: JSON.stringify({
@@ -45,10 +54,12 @@ const RegisterCompany: React.FC = () => {
             if (response.ok) {
                 setMessage(data.message || '企業と管理者を正常に登録しました。');
                 setIsError(false);
+                // 成功したらフォームをリセット
                 setCompanyName('');
                 setAdminUsername('');
                 setAdminPassword('');
             } else {
+                // サーバーから返されたエラーメッセージを表示
                 setMessage(data.message || '登録に失敗しました。');
                 setIsError(true);
             }
