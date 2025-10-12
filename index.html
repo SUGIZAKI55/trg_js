@@ -37,11 +37,23 @@
             isMaster() { return this.isAuthenticated() && this.role === 'master'; },
             isAdmin() { return this.isAuthenticated() && (this.role === 'admin' || this.role === 'master'); }
         };
-        let currentQuiz = { questions: [], index: 0 };
+        // session_idを管理するため、currentQuizにsession_idを追加
+        let currentQuiz = { questions: [], index: 0, session_id: null };
 
         // --- Utility Functions ---
         function render(c) { document.getElementById('root').innerHTML = c; }
-        function navigate(p, s={}) { if (window.location.pathname !== p || JSON.stringify(history.state) !== JSON.stringify(s)) { history.pushState(s, '', p); handleRouting(); } }
+        function navigate(p, s={}) { 
+            // 修正: 現在のパスと新しいパスが完全に一致する場合は何もしない
+            const currentPath = window.location.pathname === '/' ? '/login' : window.location.pathname;
+            const newPath = p === '/' ? '/login' : p;
+
+            if (currentPath !== newPath || JSON.stringify(history.state) !== JSON.stringify(s)) { 
+                history.pushState(s, '', p); 
+                handleRouting(); 
+            } else if (currentPath === newPath) {
+                handleRouting();
+            }
+        }
 
         // --- Component Functions ---
         function renderLogin(initialMessage = '', isError = true) {
@@ -85,23 +97,113 @@
 
         function renderDashboard() {
             if (!Auth.isAuthenticated()) { navigate('/login'); return; }
-            const html = `<div class="container"><h1 class="text-center">ようこそ、${Auth.username}さん</h1><p class="text-center text-muted">操作を選択してください。</p><div class="dashboard-button-grid"><button id="startQuizBtn" class="btn btn-primary dashboard-button">テストを実施</button><button id="myResultsBtn" class="btn btn-info dashboard-button">自分の成績を見る</button><button id="logoutBtn" class="btn btn-danger dashboard-button">ログアウト</button></div></div>`;
+            
+            // 権限表示を追加
+            const roleDisplay = Auth.isAdmin() 
+                ? `<p class="text-center text-danger">役割: ${Auth.role.toUpperCase()} (管理者権限あり)</p>` 
+                : `<p class="text-center text-success">役割: ${Auth.role ? Auth.role.toUpperCase() : 'STAFF'} (一般)</p>`;
+
+            // 管理者（master/admin）のみが表示するボタン
+            const staffRegButton = Auth.isAdmin() ? `<button id="registerStaffBtn" class="btn btn-warning dashboard-button">スタッフ新規登録</button>` : '';
+
+            const html = `
+                <div class="container">
+                    <h1 class="text-center">ようこそ、${Auth.username}さん</h1>
+                    ${roleDisplay}
+                    <p class="text-center text-muted">操作を選択してください。</p>
+                    <div class="dashboard-button-grid">
+                        ${staffRegButton}
+                        <button id="startQuizBtn" class="btn btn-primary dashboard-button">簿記クイズを開始</button>
+                        <button id="myResultsBtn" class="btn btn-info dashboard-button">自分の成績を見る</button>
+                        <button id="logoutBtn" class="btn btn-danger dashboard-button">ログアウト</button>
+                    </div>
+                </div>`;
             render(html);
+            
+            if (Auth.isAdmin()) {
+                document.getElementById('registerStaffBtn').addEventListener('click', () => navigate('/register_staff'));
+            }
             document.getElementById('startQuizBtn').addEventListener('click', () => navigate('/genre'));
             document.getElementById('myResultsBtn').addEventListener('click', () => navigate('/my_results'));
             document.getElementById('logoutBtn').addEventListener('click', () => Auth.logout());
         }
 
+        // --- スタッフ登録フォームのコンポーネント ---
+        function renderRegisterStaff(initialMessage = '', isError = true) {
+            if (!Auth.isAdmin()) { navigate('/dashboard', { message: '権限がありません。', success: false }); return; }
+
+            const messageHtml = initialMessage ? `<div class="${isError ? 'error-message' : 'success-message'}">${initialMessage}</div>` : '';
+            const html = `
+                <div class="container">
+                    <h2 class="text-center mb-4">スタッフ新規登録</h2>
+                    ${messageHtml}
+                    <form id="registerStaffForm">
+                        <div class="form-group">
+                            <label>ユーザー名:</label>
+                            <input type="text" class="form-control" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label>パスワード:</label>
+                            <input type="password" class="form-control" name="password" required minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label>権限:</label>
+                            <select class="form-control" name="role">
+                                <option value="staff">スタッフ（一般受講者）</option>
+                                <option value="admin">管理者（テスト結果閲覧・ユーザー管理）</option>
+                                ${Auth.isMaster() ? '<option value="master">マスター（最高権限）</option>' : ''}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">登録</button>
+                    </form>
+                    <div class="text-center mt-3"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div>
+                </div>`;
+            render(html);
+
+            document.getElementById('registerStaffForm').addEventListener('submit', async e => {
+                e.preventDefault();
+                const u = e.target.username.value, p = e.target.password.value, r = e.target.role.value;
+                try {
+                    // APIエンドポイントは /api/admin/create_user を想定
+                    const res = await fetch('/api/admin/create_user', { 
+                        method: 'POST', 
+                        headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}`}, 
+                        body: JSON.stringify({username: u, password: p, role: r}) 
+                    });
+                    const data = await res.json();
+                    if(res.ok) { 
+                        renderRegisterStaff(`ユーザー ${u} を${r}として登録しました。`, false); 
+                    } else { 
+                        renderRegisterStaff(data.message || '登録に失敗しました', true); 
+                    }
+                } catch (err) { renderRegisterStaff('ネットワークエラー', true); }
+            });
+            document.querySelector('a[href="/admin"]').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); });
+        }
+
+
         async function renderMyResults() {
             if (!Auth.isAuthenticated()) { navigate('/login'); return; }
             let myResults = []; let error = '';
             try {
+                // APIエンドポイントは /api/user/my_results を想定
                 const response = await fetch('/api/user/my_results', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.message || '成績の取得に失敗しました。');
                 myResults = data;
             } catch (err) { error = err.message.includes('JSON') ? 'サーバーからの応答が不正です。' : err.message; }
-            const html = `<div class="container"><h1 class="text-center mb-4">あなたの成績</h1>${error ? `<div class="alert alert-warning">${error}</div>` : ''}${myResults.length > 0 ? `<ul class="list-group">${myResults.map(r => `<li class="list-group-item d-flex justify-content-between"><span>${r.title}</span><span class="badge ${r.is_correct ? 'badge-success' : 'badge-danger'}">${r.is_correct ? '正解' : '不正解'}</span></li>`).join('')}</ul>` : '<p class="text-center">まだ解答履歴がありません。</p>'}<div class="text-center mt-4"><a href="/dashboard" class="btn btn-secondary">マイページに戻る</a></div></div>`;
+            
+            // 成績をクイズセッションごとにグループ化し、点数（正解/全問題数）を計算
+            const quizRuns = {};
+            myResults.forEach(r => {
+                if (!quizRuns[r.session_id]) {
+                    quizRuns[r.session_id] = { total: 0, correct: 0, timestamp: r.timestamp || new Date().toISOString() };
+                }
+                quizRuns[r.session_id].total++;
+                if (r.is_correct) quizRuns[r.session_id].correct++;
+            });
+            
+            const html = `<div class="container"><h1 class="text-center mb-4">あなたの成績履歴</h1>${error ? `<div class="alert alert-warning">${error}</div>` : ''}${Object.keys(quizRuns).length > 0 ? `<ul class="list-group">${Object.entries(quizRuns).map(([sessionId, run]) => `<li class="list-group-item d-flex justify-content-between"><span>実施日時: ${new Date(run.timestamp).toLocaleString()}</span><span><strong>${run.correct} / ${run.total} 問正解</strong> (${((run.correct / run.total) * 100).toFixed(0)}%)</span></li>`).join('')}</ul>` : '<p class="text-center">まだ解答履歴がありません。</p>'}<div class="text-center mt-4"><a href="/dashboard" class="btn btn-secondary">マイページに戻る</a></div></div>`;
             render(html);
             document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/dashboard'); });
         }
@@ -112,8 +214,16 @@
             const adminButtonHtml = Auth.isAdmin() ? `<button id="createUserBtn" class="btn btn-primary">受講者登録</button>` : '';
             const questionMgmtButtonHtml = Auth.isMaster() ? `<button id="qListButton" class="btn btn-info">問題管理</button>` : '';
             const viewResultsButton = Auth.isAdmin() ? `<button id="viewResultsBtn" class="btn btn-secondary">テスト結果</button>` : '';
-            const html = `<div class="container"><h1 class="text-center">${Auth.username} の管理画面</h1><p class="text-center text-muted">役割: ${Auth.role}</p><div class="tab">${masterButtonHtml}${adminButtonHtml}<button id="userListButton" class="btn btn-secondary">ユーザー一覧</button>${questionMgmtButtonHtml}${viewResultsButton}<button id="logoutButton" class="btn btn-danger">ログアウト</button></div></div>`;
+            
+            // 一般ダッシュボードに戻るボタンを追加
+            const dashboardLink = `<button id="dashboardLink" class="btn btn-warning">一般ダッシュボードに戻る</button>`;
+
+            const html = `<div class="container"><h1 class="text-center">${Auth.username} の管理画面</h1><p class="text-center text-muted">役割: ${Auth.role}</p><div class="tab">${dashboardLink}${masterButtonHtml}${adminButtonHtml}<button id="userListButton" class="btn btn-secondary">ユーザー一覧</button>${questionMgmtButtonHtml}${viewResultsButton}<button id="logoutButton" class="btn btn-danger">ログアウト</button></div></div>`;
             render(html);
+            
+            // イベントリスナーを追加
+            document.getElementById('dashboardLink').addEventListener('click', () => navigate('/dashboard'));
+
             if (Auth.isMaster()) { document.getElementById('registerCompanyBtn').addEventListener('click', () => navigate('/register_company')); }
             if (Auth.isAdmin()) { document.getElementById('createUserBtn').addEventListener('click', () => navigate('/create_user')); }
             if (Auth.isMaster()) { if(document.getElementById('qListButton')) document.getElementById('qListButton').addEventListener('click', () => navigate('/q_list')); }
@@ -121,101 +231,163 @@
             document.getElementById('userListButton').addEventListener('click', () => navigate('/users'));
             document.getElementById('logoutButton').addEventListener('click', () => Auth.logout());
         }
-        
+
         async function renderView() {
             if (!Auth.isAdmin()) { navigate('/dashboard'); return; }
             let results = []; let error = '';
             try {
+                // APIエンドポイントは /api/admin/results を想定
                 const response = await fetch('/api/admin/results', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.message || '結果の取得に失敗しました。');
                 results = data;
             } catch (err) { error = err.message.includes('JSON') ? 'サーバーからの応答が不正です。' : err.message; }
-            const groupedResults = {};
+            
+            // 全ユーザーの結果をセッションごとにグループ化し、点数を計算
+            const groupedRuns = {};
             results.forEach(r => {
-                if (!groupedResults[r.username]) groupedResults[r.username] = [];
-                groupedResults[r.username].push(r);
+                const key = `${r.username}-${r.session_id}`;
+                if (!groupedRuns[key]) {
+                    groupedRuns[key] = { 
+                        username: r.username, 
+                        company_name: r.company_name || 'N/A', 
+                        total: 0, 
+                        correct: 0, 
+                        timestamp: r.timestamp || new Date().toISOString()
+                    };
+                }
+                groupedRuns[key].total++;
+                if (r.is_correct) groupedRuns[key].correct++;
             });
-            const html = `<div class="container"><h1 class="text-center mb-4">全ユーザーのテスト結果</h1>${error ? `<div class="alert alert-warning">${error}</div>` : ''}${Object.keys(groupedResults).length > 0 ? Object.entries(groupedResults).map(([username, userResults]) => `<h3 class="mt-4">${username} (${userResults[0].company_name || 'N/A'})</h3><ul class="list-group">${userResults.map(r => `<li class="list-group-item d-flex justify-content-between"><span>${r.title}</span><span class="badge ${r.is_correct ? 'badge-success' : 'badge-danger'}">${r.is_correct ? '正解' : '不正解'}</span></li>`).join('')}</ul>`).join('') : '<p class="text-center">まだ解答履歴がありません。</p>'}<div class="text-center mt-4"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div></div>`;
+
+            const html = `<div class="container"><h1 class="text-center mb-4">全ユーザーのテスト結果</h1>${error ? `<div class="alert alert-warning">${error}</div>` : ''}${Object.keys(groupedRuns).length > 0 ? Object.values(groupedRuns).map(run => `<h3 class="mt-4">${run.username} (${run.company_name})</h3><ul class="list-group"><li class="list-group-item d-flex justify-content-between"><span>実施日時: ${new Date(run.timestamp).toLocaleString()}</span><span><strong>${run.correct} / ${run.total} 問正解</strong> (${((run.correct / run.total) * 100).toFixed(0)}%)</span></li></ul>`).join('') : '<p class="text-center">まだ解答履歴がありません。</p>'}<div class="text-center mt-4"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div></div>`;
             render(html);
             document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); });
         }
 
-        async function renderUserList() { /* ... This function is complete from the previous full version ... */ }
-        function renderRegisterCompany(initialMessage, isError) { /* ... This function is complete from the previous full version ... */ }
-        function renderCreateUser(initialMessage, isError) { /* ... This function is complete from the previous full version ... */ }
-        async function renderMasterCreateUser(initialMessage, isError) { /* ... This function is complete from the previous full version ... */ }
-        function renderMasterCreateMaster(initialMessage, isError) { /* ... This function is complete from the previous full version ... */ }
-        function renderResetPasswordModal(userId, username, message, isError) { /* ... This function is complete from the previous full version ... */ }
-        async function renderQuestionList() { /* ... This function is complete from the previous full version ... */ }
-        function renderCreateQuestion(initialMessage, isError) { /* ... This function is complete from the previous full version ... */ }
-        
-        async function renderGenre() {
-            if (!Auth.isAuthenticated()) { navigate('/login'); return; }
-            let genres = []; let error = '';
+        async function renderUserList() { 
+            // ユーザー一覧機能の実装 (簡略版)
+            if (!Auth.isAdmin()) { navigate('/dashboard'); return; }
+            let users = []; let error = '';
             try {
-                const response = await fetch('/api/quiz/genres', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
-                if (response.ok) { genres = await response.json(); }
-                else { throw new Error('ジャンルの取得に失敗'); }
+                const response = await fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'ユーザー一覧の取得に失敗しました。');
+                users = data;
             } catch (err) { error = err.message; }
-            const handleSubmit = async (event) => {
-                event.preventDefault();
-                const genre = event.target.genre.value;
-                const count = event.target.count.value;
-                try {
-                    const res = await fetch(`/api/quiz/start?genre=${genre}&count=${count}`, { headers: { 'Authorization': `Bearer ${Auth.token}` } });
-                    if (!res.ok) throw new Error('問題の取得に失敗しました。');
-                    const questions = await res.json();
-                    currentQuiz = { questions: questions, index: 0 };
-                    navigate('/question');
-                } catch (err) { document.getElementById('error-container').innerText = err.message; }
-            };
-            const html = `<div class="container"><h1 class="text-center mb-4">テスト設定</h1><div id="error-container" class="error-message"></div>${genres.length > 0 ? `<form id="genreForm"><div class="form-group"><label>ジャンル選択:</label><select class="form-control" name="genre">${genres.map(g => `<option value="${g}">${g}</option>`).join('')}</select></div><div class="form-group"><label>問題数:</label><input type="number" class="form-control" name="count" value="10" min="1" max="50"></div><button type="submit" class="btn btn-primary btn-block">テスト開始</button></form>` : `<p class="text-center">${error || '解答可能な問題がありません。'}</p>`}<div class="text-center mt-3"><a href="/dashboard" class="btn btn-secondary">マイページに戻る</a></div></div>`;
+
+            const html = `<div class="container"><h1 class="text-center mb-4">ユーザー一覧</h1>${error ? `<div class="error-message">${error}</div>` : ''}<table class="table table-striped"><thead><tr><th>ID</th><th>ユーザー名</th><th>役割</th><th>会社名</th></tr></thead><tbody>${users.map(u => `<tr><td>${u.id}</td><td>${u.username}</td><td>${u.role}</td><td>${u.company_name || 'N/A'}</td></tr>`).join('')}</tbody></table><div class="text-center mt-4"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div></div>`;
             render(html);
-            if(genres.length > 0) document.getElementById('genreForm').addEventListener('submit', handleSubmit);
-            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/dashboard'); });
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); });
+        }
+        
+        function renderRegisterCompany(initialMessage, isError) { 
+            // 企業登録機能の実装 (簡略版)
+            render('<div class="container"><h1 class="text-center">企業・管理者登録</h1><p class="text-center">この機能は実装待ちです (API: /api/master/register_company)</p><div class="text-center mt-4"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div></div>'); 
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); }); 
+        }
+        
+        function renderCreateUser(initialMessage, isError) { 
+            // 受講者登録機能の実装 (renderRegisterStaffと重複するため簡略化)
+            render('<div class="container"><h1 class="text-center">受講者登録</h1><p class="text-center">この機能は実装待ちです (API: /api/admin/create_user)</p><div class="text-center mt-4"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div></div>'); 
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); }); 
+        }
+        
+        async function renderMasterCreateUser(initialMessage, isError) { 
+            // マスターによる受講者登録機能の実装
+            render('<div class="container"><h1 class="text-center">マスター受講者登録</h1><p class="text-center">この機能は実装待ちです (API: /api/master/create_user)</p><div class="text-center mt-4"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div></div>'); 
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); }); 
+        }
+        
+        function renderMasterCreateMaster(initialMessage, isError) { 
+            // マスター作成機能の実装
+            render('<div class="container"><h1 class="text-center">マスター作成</h1><p class="text-center">この機能は実装待ちです (API: /api/master/create_master)</p><div class="text-center mt-4"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div></div>'); 
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); }); 
+        }
+        
+        function renderResetPasswordModal(userId, username, message, isError) { 
+            console.log('Password reset modal called'); 
+        }
+        
+        async function renderQuestionList() {
+            if (!Auth.isMaster()) { navigate('/dashboard'); return; }
+            let questions = []; let error = '';
+            try {
+                // APIエンドポイントは /api/questions (GET) を想定
+                const response = await fetch('/api/questions', { headers: { 'Authorization': `Bearer ${Auth.token}` } });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || '問題の取得に失敗しました。');
+                questions = data;
+            } catch (err) { error = err.message.includes('JSON') ? 'サーバーからの応答が不正です。' : err.message; }
+
+            const handleDelete = async (id) => {
+                if (!confirm('本当にこの問題を削除しますか？')) return;
+                try {
+                    // APIエンドポイントは /api/questions/{id} (DELETE) を想定
+                    const res = await fetch(`/api/questions/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${Auth.token}` } });
+                    if (!res.ok) throw new Error('削除に失敗しました。');
+                    navigate('/q_list', { message: '問題を削除しました。', success: true });
+                } catch (err) { alert(err.message); renderQuestionList(err.message, true); }
+            };
+
+            const handleCreate = () => navigate('/create_question');
+
+            const messageHtml = error ? `<div class="error-message">${error}</div>` : (history.state && history.state.message ? `<div class="success-message">${history.state.message}</div>` : '');
+            
+            const html = `<div class="container"><h1 class="text-center mb-4">問題管理</h1>${messageHtml}<button id="createQuestionBtn" class="btn btn-primary mb-3">新規問題作成</button><div class="table-responsive"><table class="table table-striped table-bordered"><thead><tr><th>ID</th><th>ジャンル</th><th>問題文</th><th>正解</th><th>操作</th></tr></thead><tbody>${questions.length > 0 ? questions.map(q => `<tr><td>${q.id}</td><td>${q.genre}</td><td>${q.title.substring(0, 30)}...</td><td>${q.answer.split(':').join(', ')}</td><td><button class="btn btn-sm btn-info edit-btn" data-id="${q.id}">編集</button> <button class="btn btn-sm btn-danger delete-btn" data-id="${q.id}">削除</button></td></tr>`).join('') : '<tr><td colspan="5" class="text-center">問題がありません。</td></tr>'}</tbody></table></div><div class="text-center mt-4"><a href="/admin" class="btn btn-secondary">管理画面に戻る</a></div></div>`;
+            render(html);
+            
+            document.getElementById('createQuestionBtn').addEventListener('click', handleCreate);
+            document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => handleDelete(e.target.dataset.id)));
+            document.querySelector('.btn-secondary').addEventListener('click', e => { e.preventDefault(); navigate('/admin'); });
+            // 編集ボタンの処理は renderCreateQuestion(id) に委譲
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', (e) => navigate('/create_question', { questionId: e.target.dataset.id })));
         }
 
-        function renderQuestion() {
-            if (!Auth.isAuthenticated()) { navigate('/login'); return; }
-            if (currentQuiz.questions.length === 0 || currentQuiz.index >= currentQuiz.questions.length) {
-                alert('テストが終了しました。'); navigate('/dashboard'); return;
-            }
-            const q = currentQuiz.questions[currentQuiz.index];
-            const handleSubmit = async (event) => {
-                event.preventDefault();
-                const formData = new FormData(event.target);
-                const userAnswer = formData.getAll('user_answer');
+        function renderCreateQuestion(initialMessage, isError) {
+            if (!Auth.isMaster()) { navigate('/dashboard'); return; }
+            // 簡略化された問題作成フォーム
+            const messageHtml = initialMessage ? `<div class="${isError ? 'error-message' : 'success-message'}">${initialMessage}</div>` : '';
+            const html = `<div class="container"><h1 class="text-center mb-4">問題作成/編集</h1>${messageHtml}<form id="questionForm"><div class="form-group"><label>ジャンル (例: 簿記:仕訳):</label><input type="text" class="form-control" name="genre" required></div><div class="form-group"><label>問題文:</label><textarea class="form-control" name="title" required></textarea></div><div class="form-group"><label>選択肢 (例: 選A:選B:選C):</label><input type="text" class="form-control" name="choices" required></div><div class="form-group"><label>正解 (複数解答は:で区切る):</label><input type="text" class="form-control" name="answer" required></div><div class="form-group"><label>解説:</label><textarea class="form-control" name="explanation"></textarea></div><button type="submit" class="btn btn-primary btn-block">問題 ${history.state && history.state.questionId ? '更新' : '作成'}</button></form><div class="text-center mt-4"><a href="/q_list" class="btn btn-secondary">一覧に戻る</a></div></div>`;
+            render(html);
+
+            // API連携ロジック (作成と編集の両方)
+            document.getElementById('questionForm').addEventListener('submit', async e => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData.entries());
+                const method = history.state && history.state.questionId ? 'PUT' : 'POST';
+                const url = method === 'PUT' ? `/api/questions/${history.state.questionId}` : '/api/questions';
+                
                 try {
-                    const res = await fetch('/api/quiz/submit_answer', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` }, body: JSON.stringify({ question_id: q.id, user_answer: userAnswer }) });
-                    if (!res.ok) throw new Error('解答の送信に失敗しました。');
-                    const resultData = await res.json();
-                    navigate('/kekka', { resultData });
-                } catch (err) { alert(err.message); }
-            };
-            const html = `<div class="container"><h2 class="text-center mb-4">問題 ${currentQuiz.index + 1} / ${currentQuiz.questions.length}</h2><div class="card"><div class="card-header">${q.title}</div><div class="card-body"><form id="questionForm">${(q.choices || "").split(':').map(c => `<div class="form-check"><input class="form-check-input" type="checkbox" name="user_answer" value="${c}" id="choice-${c}"><label class="form-check-label" for="choice-${c}">${c}</label></div>`).join('')}<button type="submit" class="btn btn-primary btn-block mt-4">解答する</button></form></div></div></div>`;
-            render(html);
-            document.getElementById('questionForm').addEventListener('submit', handleSubmit);
-        }
-        
-        function renderKekka(state) {
-            if (!Auth.isAuthenticated()) { navigate('/login'); return; }
-            const { resultData } = state || {};
-            if (!resultData) { navigate('/dashboard'); return; }
-            const q = currentQuiz.questions[currentQuiz.index];
-            const resultHtml = resultData.is_correct ? `<h2 class="text-success">正解！</h2>` : `<h2 class="text-danger">不正解...</h2>`;
-            const html = `<div class="container"><div class="text-center mb-3">${resultHtml}</div><p><strong>問題:</strong> ${q.title}</p><p><strong>正解:</strong> ${resultData.correct_answer.join(', ')}</p>${resultData.explanation ? `<p><strong>解説:</strong> ${resultData.explanation}</p>` : ''}<div class="text-center mt-4"><button id="nextQuestionBtn" class="btn btn-primary">次の問題へ</button></div></div>`;
-            render(html);
-            document.getElementById('nextQuestionBtn').addEventListener('click', () => {
-                currentQuiz.index++;
-                navigate('/question');
+                    const res = await fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` },
+                        body: JSON.stringify(data)
+                    });
+                    if (!res.ok) throw new Error('操作に失敗しました。');
+                    
+                    navigate('/q_list', { message: `問題を${method === 'POST' ? '作成' : '更新'}しました。`, success: true });
+                } catch (err) { renderCreateQuestion(err.message, true); }
             });
+
+            // 編集時のデータ読み込み（questionIdがstateにあれば）
+            if (history.state && history.state.questionId) {
+                // ここで /api/questions/{id} からデータを取得してフォームにセットする処理が必要です
+            }
         }
-        
+
         // --- Routing Logic ---
         function handleRouting() {
-            const path = window.location.pathname;
+            // 修正: 初期ロード時のパスを安全に決定
+            let path = window.location.pathname;
+            // Blob URLからのロード時、pathが/以外の場合があるため、安全にリセット
+            if (path !== '/' && !path.startsWith('/login') && !path.startsWith('/signup') && !Auth.isAuthenticated()) {
+                path = '/login';
+            }
+            
             if (!Auth.isAuthenticated() && path !== '/login' && path !== '/signup') { navigate('/login'); return; }
+            
             switch (true) {
                 case path === '/login' || path === '/': renderLogin(history.state?.message, !history.state?.success); break;
                 case path === '/signup': renderSignup(); break;
@@ -227,6 +399,7 @@
                 case path === '/create_user': renderCreateUser(); break;
                 case path === '/master/create_user': renderMasterCreateUser(); break;
                 case path === '/master/create_master': renderMasterCreateMaster(); break;
+                case path === '/register_staff': renderRegisterStaff(); break;
                 case path === '/q_list': renderQuestionList(); break;
                 case path === '/create_question': renderCreateQuestion(); break;
                 case path === '/genre': renderGenre(); break;
@@ -239,6 +412,7 @@
             }
         }
         
+        // 初期ロード時にnavigate('/')を呼び出す代わりに、直接handleRoutingを呼び出す
         window.addEventListener('popstate', handleRouting);
         document.addEventListener('DOMContentLoaded', handleRouting);
     </script>

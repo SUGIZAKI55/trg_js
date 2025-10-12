@@ -6,7 +6,10 @@ from datetime import datetime, timedelta, timezone
 import logging
 import json
 import random
-from .db import query_db, execute_db, get_db
+
+# .dbモジュールから必要な関数をインポート
+# get_db はトランザクション管理のために残す
+from .db import query_db, execute_db, get_db 
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -41,7 +44,6 @@ def roles_required(roles):
     def decorator(f):
         from functools import wraps
         @wraps(f)
-        # ★★★ 修正箇所: デコレータをここ（内側）に移動 ★★★
         @auth_required
         def decorated_function(*args, **kwargs):
             if not hasattr(g, 'current_user_role') or g.current_user_role not in roles:
@@ -59,6 +61,7 @@ def signup():
     if query_db('SELECT id FROM users WHERE username = ?', [username], one=True):
         return jsonify({'message': f'User {username} already exists'}), 400
     
+    # 最初のユーザーはマスターとして登録
     user_count_row = query_db('SELECT COUNT(id) as count FROM users', one=True)
     user_count = user_count_row['count'] if user_count_row else 0
     role = 'master' if user_count == 0 else 'user'
@@ -110,7 +113,8 @@ def get_quiz_genres():
         genres_rows = query_db(query, params)
         all_genres = set()
         for row in genres_rows:
-            genres = [g.strip() for g in row['genre'].split(':') if g.strip()]
+            # データベースの問題データがジャンルを ':' 区切りで保持している可能性を考慮
+            genres = [g.strip() for g in row['genre'].split(':') if g.strip()] 
             all_genres.update(genres)
         return jsonify(sorted(list(all_genres)))
     except sqlite3.Error as e:
@@ -123,17 +127,24 @@ def start_quiz():
     count = request.args.get('count', type=int)
     if not all([genre, count]):
         return jsonify({'message': 'Genre and count parameters are required'}), 400
+    
+    # ジャンルに部分一致する問題を検索
+    search_genre = f"%{genre}%"
+
     company_id = g.current_user_company_id
-    query = "SELECT id, title, choices FROM questions WHERE genre LIKE ? AND (company_id IS NULL"
-    params = [f"%{genre}%"]
+    query = "SELECT id, title, choices, explanation FROM questions WHERE genre LIKE ? AND (company_id IS NULL"
+    params = [search_genre]
     if company_id:
         query += " OR company_id = ?)"
         params.append(company_id)
     else:
         query += ")"
+    
+    # データを取得し、ランダムに選択
     try:
         available_questions = query_db(query, params)
         if not available_questions: return jsonify({'message': 'No questions found for this genre.'}), 404
+        
         selected_count = min(count, len(available_questions))
         questions_to_send = random.sample(available_questions, selected_count)
         return jsonify([dict(row) for row in questions_to_send])
@@ -144,23 +155,103 @@ def start_quiz():
 @auth_required
 def submit_answer():
     data = request.get_json()
-    question_id, user_answer_list = data.get('question_id'), data.get('user_answer')
-    if question_id is None or user_answer_list is None:
-        return jsonify({'message': 'question_id and user_answer are required'}), 400
+    question_id = data.get('question_id')
+    user_answer_list = data.get('user_answer', [])
+    session_id = data.get('session_id') # フロントエンドから渡されるセッションID
+
+    if question_id is None or user_answer_list is None or session_id is None:
+        return jsonify({'message': 'question_id, user_answer, and session_id are required'}), 400
+        
     question = query_db("SELECT answer, explanation FROM questions WHERE id = ?", [question_id], one=True)
     if not question: return jsonify({'message': 'Question not found'}), 404
-    correct_answer_set = set(ans.strip() for ans in question['answer'].split(':'))
-    user_answer_set = set(ans.strip() for ans in user_answer_list)
+    
+    # 正解とユーザー解答をセットで比較して判定（順序を無視し、内容が完全に一致するか）
+    correct_answer_set = set(ans.strip() for ans in question['answer'].split(':') if ans.strip())
+    user_answer_set = set(ans.strip() for ans in user_answer_list if ans.strip())
     is_correct = (user_answer_set == correct_answer_set)
+    
     user_answer_str = json.dumps(user_answer_list, ensure_ascii=False)
+    timestamp = datetime.now(timezone.utc).isoformat()
+    
     try:
-        execute_db("INSERT INTO results (user_id, question_id, user_answer, is_correct) VALUES (?, ?, ?, ?)",
-                   [g.current_user_id, question_id, user_answer_str, is_correct])
-        return jsonify({'is_correct': is_correct, 'correct_answer': list(correct_answer_set), 'explanation': question['explanation']}), 200
+        # results テーブルに解答結果を保存
+        execute_db("INSERT INTO results (user_id, question_id, session_id, user_answer, is_correct, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+                   [g.current_user_id, question_id, session_id, user_answer_str, is_correct, timestamp])
+                   
+        return jsonify({
+            'is_correct': is_correct, 
+            'correct_answer': list(correct_answer_set), 
+            'explanation': question['explanation'],
+            'user_answer': user_answer_list
+        }), 200
     except sqlite3.Error as e:
-        return jsonify({'message': 'Failed to save result'}), 500
+        return jsonify({'message': f'Failed to save result: {e}'}), 500
+
+# --- ユーザー成績取得API (/my_results に対応) ---
+@api_bp.route('/user/my_results', methods=['GET'])
+@auth_required
+def get_my_results():
+    """ログインユーザーのすべての解答履歴を取得 (session_idを含む)"""
+    try:
+        # resultsテーブルにsession_idとtimestampが格納されている前提で修正
+        results = query_db("""
+            SELECT 
+                r.session_id, 
+                r.is_correct, 
+                r.timestamp,
+                q.title 
+            FROM results r
+            JOIN questions q ON r.question_id = q.id
+            WHERE r.user_id = ?
+            ORDER BY r.timestamp DESC
+        """, [g.current_user_id])
+        
+        return jsonify([dict(r) for r in results])
+    except sqlite3.Error as e:
+        return jsonify({'message': f'Database error on my_results: {e}'}), 500
+
 
 # --- ユーザー & 企業管理API ---
+
+# ★ 修正箇所: /api/admin/create_user の実装を、フロントエンドの要求通りに修正 ★
+@api_bp.route('/admin/create_user', methods=['POST'])
+@roles_required(['admin'])
+def create_user():
+    data = request.get_json()
+    username, password, role = data.get('username'), data.get('password'), data.get('role', 'user') # roleを受け取る
+    
+    if not all([username, password]): return jsonify({'message': 'Username and password are required'}), 400
+    if query_db('SELECT id FROM users WHERE username = ?', [username], one=True):
+        return jsonify({'message': 'Username already exists'}), 400
+        
+    company_id = g.current_user_company_id
+    
+    # 管理者がマスターユーザーを作成しようとした場合の制限
+    if role == 'master' and g.current_user_role != 'master':
+        return jsonify({'message': 'Permission denied: Only master users can create master accounts.'}), 403
+
+    if g.current_user_role == 'admin':
+        # Adminは自分の会社内で、staffまたはadmin（同じロール）を作成可能
+        if role == 'user':
+            role = 'staff' # フロントエンドの'staff'オプションに対応
+        elif role != 'staff' and role != 'admin':
+            return jsonify({'message': 'Admin users can only create staff or admin roles.'}), 403
+            
+        if not company_id: return jsonify({'message': 'Admin is not associated with a company.'}), 400
+        
+    # マスターユーザーは company_id が None のまま、任意のロールを作成可能
+    elif g.current_user_role == 'master':
+        company_id = data.get('company_id', None) # マスターは会社IDを任意で設定可能
+        
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    
+    try:
+        execute_db('INSERT INTO users (company_id, username, password_hash, role) VALUES (?, ?, ?, ?)', [company_id, username, hashed_password, role])
+        return jsonify({'message': f'User {username} created successfully as {role}'}), 201
+    except sqlite3.Error as e:
+        return jsonify({'message': f'Database error occurred: {e}'}), 500
+
+# --- 既存のAPIルート（変更なし） ---
 @api_bp.route('/admin/users', methods=['GET'])
 @roles_required(['master', 'admin'])
 def get_users():
@@ -172,24 +263,6 @@ def get_users():
     users = query_db(query, params)
     return jsonify([dict(row) for row in users])
 
-@api_bp.route('/admin/create_user', methods=['POST'])
-@roles_required(['admin'])
-def create_user():
-    data = request.get_json()
-    username, password = data.get('username'), data.get('password')
-    if not all([username, password]): return jsonify({'message': 'Username and password are required'}), 400
-    if query_db('SELECT id FROM users WHERE username = ?', [username], one=True):
-        return jsonify({'message': 'Username already exists'}), 400
-    company_id = g.current_user_company_id
-    if not company_id: return jsonify({'message': 'Admin is not associated with a company.'}), 400
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-    try:
-        execute_db('INSERT INTO users (company_id, username, password_hash, role) VALUES (?, ?, ?, ?)', [company_id, username, hashed_password, 'user'])
-        return jsonify({'message': 'User created successfully'}), 201
-    except sqlite3.Error:
-        return jsonify({'message': 'Database error occurred'}), 500
-
-# --- マスター管理者用API ---
 @api_bp.route('/master/register_company', methods=['POST'])
 @roles_required(['master'])
 def register_company():
