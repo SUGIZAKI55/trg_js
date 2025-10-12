@@ -1,67 +1,53 @@
-from flask import Flask, jsonify, request, g, render_template_string
+from flask import Flask, send_from_directory, Response, render_template # render_template をインポート
 import os
 from .api import api_bp
 from .db import close_db, init_db
 import logging
 
-# ロギング設定
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def create_app(test_config=None):
-    # Flaskインスタンスの作成
-    # プロジェクトルート（trg_js/）を基準に設定
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     
-    # index.htmlがルートにあるため、static/templateフォルダを明示的に指定
-    app = Flask(__name__, 
+    # ★★★ 修正点1: template_folder を明示的に指定 ★★★
+    # これで Flask は flask_api/templates を見つけられるようになります
+    app = Flask(__name__,
                 root_path=project_root,
-                static_folder=project_root, # ルートを静的フォルダとして扱う
-                template_folder=project_root) # ルートをテンプレートフォルダとして扱う
-    
-    # 基本設定
+                template_folder=os.path.join(project_root, 'flask_api', 'templates'))
+
     app.config.from_mapping(
-        SECRET_KEY='development_secret_key_change_me', # 本番環境では必ず変更してください
-        DATABASE=os.path.join(app.root_path, 'sugizaki.db'),
-        # ログファイルのパスを設定
-        LOG_FILE_PATH=os.path.join(app.root_path, 'log.ndjson')
+        SECRET_KEY='development_secret_key_change_me',
+        DATABASE=os.path.join(project_root, 'sugizaki.db'),
+        LOG_FILE_PATH=os.path.join(project_root, 'log.ndjson')
     )
 
-    if test_config is None:
-        app.config.from_pyfile('config.py', silent=True)
-    else:
-        app.config.from_mapping(test_config)
-
-    # データベースの初期化
+    # ... (DB初期化やAPI登録の部分は変更なし) ...
     with app.app_context():
-        try:
-            init_db(app)
-        except Exception as e:
-            app.logger.error(f"データベースの初期化に失敗しました: {e}")
-            # 起動を中止させる場合は raise e を使用
-    
-    # リクエスト終了後にDB接続を閉じる
+        init_db(app)
     app.teardown_appcontext(close_db)
-
-    # APIブループリントの登録
     app.register_blueprint(api_bp)
 
-    # --- SPA（シングルページアプリケーション）のためのルーティング ---
+    # ★★★ 修正点2: Reactに渡す「前」に、Flask専用のルートを定義 ★★★
+    @app.route('/server-admin')
+    def server_admin_page():
+        # flask_api/templates/server_admin.html を表示します
+        return render_template('server_admin.html')
 
-    # ルートURL (/) で index.html を返す
-    @app.route('/')
-    def index():
-        return app.send_static_file('index.html')
 
-    # API以外のすべてのパスをindex.htmlに転送し、フロントエンド側でルーティングさせる
+    # Reactアプリを配信するための包括的なルート（これは一番最後に置く）
+    @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
-    def serve_spa(path):
-        # 存在しないパスへのアクセスはすべてindex.htmlに任せることで、
-        # React RouterやVue Routerのようなフロントエンドルーティングを可能にする
-        # ただし、JSやCSSファイルなどの実在する静的ファイルはそのまま配信する
-        full_path = os.path.join(app.static_folder, path)
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-             return app.send_static_file(path)
+    def serve_react_app(path):
+        dist_dir = os.path.join(project_root, 'frontend', 'dist')
+        if path != "" and os.path.exists(os.path.join(dist_dir, path)):
+            return send_from_directory(dist_dir, path)
         else:
-             return app.send_static_file('index.html')
+            try:
+                with open(os.path.join(dist_dir, 'index.html'), 'r', encoding='utf-8') as f:
+                    content = f.read()
+                return Response(content, mimetype='text/html')
+            except Exception as e:
+                app.logger.error(f"致命的なエラー: index.htmlの読み込みに失敗しました。エラー: {e}")
+                return "<h1>500 Internal Server Error</h1>", 500
 
     return app
