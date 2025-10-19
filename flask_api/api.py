@@ -80,13 +80,11 @@ def login():
 
 # --- 問題管理API (マスター・管理者用) ---
 
-# [追加] 全ての問題を取得
 @api_bp.route('/questions', methods=['GET'])
 @roles_required(['master', 'admin'])
 def get_questions():
     query = "SELECT id, genre, title, choices, answer, explanation FROM questions"
     params = []
-    # 管理者の場合、自社作成の問題と共通問題のみ表示
     if g.current_user_role == 'admin':
         query += " WHERE company_id = ? OR company_id IS NULL"
         params.append(g.current_user_company_id)
@@ -94,7 +92,6 @@ def get_questions():
     questions = query_db(query, params)
     return jsonify([dict(row) for row in questions])
 
-# [追加] 特定の問題を取得 (編集用)
 @api_bp.route('/questions/<int:question_id>', methods=['GET'])
 @roles_required(['master', 'admin'])
 def get_question(question_id):
@@ -103,7 +100,6 @@ def get_question(question_id):
         return jsonify({'message': '問題が見つかりません'}), 404
     return jsonify(dict(question))
 
-# 新しい問題を作成
 @api_bp.route('/questions', methods=['POST'])
 @roles_required(['master', 'admin'])
 def create_question():
@@ -120,7 +116,6 @@ def create_question():
     except sqlite3.Error as e:
         return jsonify({'message': f'データベースエラー: {e}'}), 500
 
-# [追加] 問題を更新
 @api_bp.route('/questions/<int:question_id>', methods=['PUT'])
 @roles_required(['master', 'admin'])
 def update_question(question_id):
@@ -133,7 +128,6 @@ def update_question(question_id):
                [genre, title, choices, answer, data.get('explanation', ''), question_id])
     return jsonify({'message': '問題が更新されました'}), 200
 
-# [追加] 問題を削除
 @api_bp.route('/questions/<int:question_id>', methods=['DELETE'])
 @roles_required(['master', 'admin'])
 def delete_question(question_id):
@@ -155,7 +149,8 @@ def get_quiz_genres():
         genres_rows = query_db(query, params)
         all_genres = set()
         for row in genres_rows:
-            genres = [g.strip() for g in row['genre'].split(':') if g.strip()] 
+            # バグ修正: row['genre']がNoneの場合に備える
+            genres = [g.strip() for g in (row['genre'] or '').split(':') if g.strip()] 
             all_genres.update(genres)
         return jsonify(sorted(list(all_genres)))
     except sqlite3.Error as e:
@@ -191,6 +186,11 @@ def start_quiz():
 @api_bp.route('/quiz/submit_answer', methods=['POST'])
 @auth_required
 def submit_answer():
+    # ★★★ デバッグログ 1: 関数が呼ばれたことを確認 ★★★
+    logger.info("--- submit_answer関数が開始されました (最新版) ---")
+    logger.info(f"--- 受け取ったID: {request.get_json().get('question_id')} ---")
+    logger.info("--- これからDBにクエリを発行します ---")
+        
     data = request.get_json()
     question_id, user_answer_list, session_id = data.get('question_id'), data.get('user_answer', []), data.get('session_id')
     if question_id is None or user_answer_list is None or session_id is None:
@@ -199,7 +199,9 @@ def submit_answer():
     question = query_db("SELECT answer, explanation FROM questions WHERE id = ?", [question_id], one=True)
     if not question: return jsonify({'message': '問題が見つかりません'}), 404
     
-    correct_answer_set = set(ans.strip() for ans in question['answer'].split(':') if ans.strip())
+    # バグ修正: question['answer']がNoneの場合に備える
+    correct_answer_set = set(ans.strip() for ans in (question['answer'] or '').split(':') if ans.strip())
+    
     user_answer_set = set(ans.strip() for ans in user_answer_list if ans.strip())
     is_correct = (user_answer_set == correct_answer_set)
     
@@ -209,8 +211,14 @@ def submit_answer():
     try:
         execute_db("INSERT INTO results (user_id, question_id, session_id, user_answer, is_correct, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
                    [g.current_user_id, question_id, session_id, user_answer_str, is_correct, timestamp])
+        
+        # ★★★ デバッグログ 2: 成功したことを確認 ★★★
+        logger.info("--- 解答のDB保存に成功しました ---")
+                   
         return jsonify({'is_correct': is_correct, 'correct_answer': list(correct_answer_set), 'explanation': question['explanation']}), 200
     except sqlite3.Error as e:
+        # ★★★ デバッグログ 3: 失敗した場合のエラー詳細を出力 ★★★
+        logger.error(f"--- DB保存中にエラーが発生: {e} ---", exc_info=True)
         return jsonify({'message': f'結果の保存に失敗しました: {e}'}), 500
 
 # --- 成績・結果取得API ---
@@ -227,7 +235,6 @@ def get_my_results():
     except sqlite3.Error as e:
         return jsonify({'message': f'データベースエラー: {e}'}), 500
 
-# [追加] 全ユーザーの成績を取得 (管理者用)
 @api_bp.route('/admin/results', methods=['GET'])
 @roles_required(['master', 'admin'])
 def get_all_results():
@@ -238,7 +245,6 @@ def get_all_results():
         LEFT JOIN companies c ON u.company_id = c.id
     """
     params = []
-    # 管理者の場合、自社のユーザーの結果のみ表示
     if g.current_user_role == 'admin':
         query += " WHERE u.company_id = ?"
         params.append(g.current_user_company_id)
@@ -251,7 +257,6 @@ def get_all_results():
         return jsonify({'message': f'データベースエラー: {e}'}), 500
 
 # --- ユーザー & 企業管理API ---
-
 @api_bp.route('/admin/create_user', methods=['POST'])
 @roles_required(['admin', 'master'])
 def create_user():
@@ -269,9 +274,9 @@ def create_user():
             return jsonify({'message': '管理者はstaffまたはadmin権限のユーザーのみ作成できます'}), 403
         if not company_id: return jsonify({'message': '管理者が企業に紐付いていません'}), 400
     elif g.current_user_role == 'master':
-        company_id = data.get('company_id') # マスターはリクエストで企業IDを指定できる
+        company_id = data.get('company_id')
         if role == 'master':
-             company_id = None # マスターはどの企業にも属さない
+             company_id = None
     
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     try:
@@ -312,6 +317,3 @@ def register_company():
     except sqlite3.Error as e:
         get_db().rollback()
         return jsonify({'message': f'データベースエラー: {e}'}), 500
-
-# (その他のマスター用APIは変更なしのため省略)
-# ...

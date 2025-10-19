@@ -1,72 +1,57 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
+import Signup from './components/Signup';
 import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import UserList from './components/UserList';
 import RegisterCompany from './components/RegisterCompany'; 
-// ★★★ 追加するインポート ★★★
 import QuestionManager from './components/QuestionManager'; 
 import TestResults from './components/TestResults'; 
+import GenreSelect from './components/GenreSelect';
+import QuizQuestion from './components/QuizQuestion';
+import QuizResults from './components/QuizResults';
+
+// ★★★ 1. RegisterStaffコンポーネントをインポートします ★★★
+import RegisterStaff from './components/RegisterStaff';
 
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
 
 function App() {
   const { auth } = useAuth();
-
-  // 認証済みかつ管理者/マスター権限が必要なルートの権限チェックヘルパー
   const isAdminOrMaster = auth && (auth.role === 'admin' || auth.role === 'master');
   
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={auth ? <Navigate to="/" /> : <Login />}
-      />
-      <Route
-        path="/dashboard"
-        element={auth ? <UserDashboard /> : <Navigate to="/login" />}
-      />
+      {/* --- ログイン・新規登録ルート --- */}
+      <Route path="/login" element={auth ? <Navigate to="/" /> : <Login />} />
+      <Route path="/signup" element={auth ? <Navigate to="/" /> : <Signup />} />
       
-      {/* 管理画面のルート */}
-      <Route
-        path="/admin"
-        element={isAdminOrMaster ? <AdminDashboard /> : <Navigate to="/login" />}
-      />
+      {/* --- 認証が必要なルート --- */}
+      <Route path="/dashboard" element={auth ? <UserDashboard /> : <Navigate to="/login" />} />
       
-      {/* ユーザー一覧 (管理者/マスター) */}
-      <Route
-        path="/users"
-        element={isAdminOrMaster ? <UserList /> : <Navigate to="/login" />}
-      />
+      {/* --- クイズ機能のルート --- */}
+      <Route path="/genre" element={auth ? <GenreSelect /> : <Navigate to="/login" />} />
+      <Route path="/question" element={auth ? <QuizQuestion /> : <Navigate to="/login" />} />
+      <Route path="/kekka" element={auth ? <QuizResults /> : <Navigate to="/login" />} />
       
-      {/* 企業・管理者登録 (マスターのみ) */}
-      <Route
-        path="/register_company"
-        element={auth && auth.role === 'master' ? <RegisterCompany /> : <Navigate to="/login" />}
-      />
-      
-      {/* ★★★ 問題管理 (管理者/マスター) - /q_list に対応 ★★★ */}
-      <Route
-        path="/q_list"
-        element={isAdminOrMaster ? <QuestionManager /> : <Navigate to="/login" />}
-      />
+      {/* --- 管理者用のルート --- */}
+      <Route path="/admin" element={isAdminOrMaster ? <AdminDashboard /> : <Navigate to="/login" />} />
+      <Route path="/users" element={isAdminOrMaster ? <UserList /> : <Navigate to="/login" />} />
+      <Route path="/register_company" element={auth && auth.role === 'master' ? <RegisterCompany /> : <Navigate to="/login" />} />
+      <Route path="/q_list" element={isAdminOrMaster ? <QuestionManager /> : <Navigate to="/login" />} />
+      <Route path="/view" element={isAdminOrMaster ? <TestResults /> : <Navigate to="/login" />} />
 
-      {/* ★★★ テスト結果 (管理者/マスター) - /view に対応 ★★★ */}
-      <Route
-        path="/view"
-        element={isAdminOrMaster ? <TestResults /> : <Navigate to="/login" />}
-      />
+      {/* ★★★ 2. /register_staff のルートをここに追加します ★★★ */}
+      <Route path="/register_staff" element={isAdminOrMaster ? <RegisterStaff /> : <Navigate to="/login" />} />
 
-      {/* デフォルトルート（*）の処理 */}
+      {/* --- デフォルトルート --- */}
       <Route
         path="*"
         element={
           auth ? (
-            // ログイン済みの場合、権限に応じてダッシュボードにリダイレクト
             isAdminOrMaster ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />
           ) : (
-            // 未ログインの場合、ログイン画面へ
             <Navigate to="/login" />
           )
         }

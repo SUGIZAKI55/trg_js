@@ -1,21 +1,24 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext'; // これをインポート
+import { useAuth } from '../contexts/AuthContext';
+// ★★★ 1. `Link` を react-router-dom からインポートします ★★★
+import { useNavigate, Link } from 'react-router-dom';
 
-// ログイン成功時に受け取るデータの型
+// 認証データの型
 interface AuthData {
   token: string;
   username: string;
   role: string;
 }
 
-// 親から渡されていた onLoginSuccess は不要になったので削除
-function Login() {
-  const { login } = useAuth(); // Contextからlogin関数を取得
+const Login: React.FC = () => {
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
+  // ★★★ 2. ログインに成功したらダッシュボードに飛ばすようにします ★★★
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
@@ -25,8 +28,11 @@ function Login() {
         username,
         password,
       });
-      // Contextが持つ中央のlogin関数を呼び出す
-      login(response.data);
+      login(response.data); // Contextに認証情報をセット
+      
+      // ログイン成功後、強制的にダッシュボードへ移動
+      // (App.tsxのリダイレクトがうまく機能しない場合のため)
+      navigate('/dashboard'); 
 
     } catch (err: any) {
       if (axios.isAxiosError(err) && err.response) {
@@ -38,10 +44,17 @@ function Login() {
   };
 
   return (
-    // 見た目(JSX)の部分は変更ありません
     <div className="container" style={{ maxWidth: '500px' }}>
       <h2 className="text-center mb-4">ログイン</h2>
       {error && <div className="alert alert-danger">{error}</div>}
+      
+      {/* ★★★ 3. 登録成功時のメッセージを表示するロジック (おまけ) ★★★ */}
+      {/* (この機能は現在 `Maps` の state を使っていないのでコメントアウト)
+        {location.state?.message && (
+          <div className="alert alert-success">{location.state.message}</div>
+        )} 
+      */}
+
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="username">ユーザー名:</label>
@@ -55,8 +68,15 @@ function Login() {
           ログイン
         </button>
       </form>
+      
+      {/* ★★★ 4. 新規登録画面へのリンクをここに追加します ★★★ */}
+      <div className="text-center mt-3">
+        <p>
+          アカウントをお持ちではありませんか？ <Link to="/signup">新規登録</Link>
+        </p>
+      </div>
     </div>
   );
-}
+};
 
 export default Login;
