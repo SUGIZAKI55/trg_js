@@ -10,9 +10,10 @@ import TestResults from './components/TestResults';
 import GenreSelect from './components/GenreSelect';
 import QuizQuestion from './components/QuizQuestion';
 import QuizResults from './components/QuizResults';
-
-// ★★★ 1. RegisterStaffコンポーネントをインポートします ★★★
 import RegisterStaff from './components/RegisterStaff';
+
+// ★★★ 1. CreateQuestionコンポーネントをインポートします ★★★
+import CreateQuestion from './components/CreateQuestion';
 
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
@@ -41,9 +42,10 @@ function App() {
       <Route path="/register_company" element={auth && auth.role === 'master' ? <RegisterCompany /> : <Navigate to="/login" />} />
       <Route path="/q_list" element={isAdminOrMaster ? <QuestionManager /> : <Navigate to="/login" />} />
       <Route path="/view" element={isAdminOrMaster ? <TestResults /> : <Navigate to="/login" />} />
-
-      {/* ★★★ 2. /register_staff のルートをここに追加します ★★★ */}
       <Route path="/register_staff" element={isAdminOrMaster ? <RegisterStaff /> : <Navigate to="/login" />} />
+
+      {/* ★★★ 2. /create_question のルートをここに追加します ★★★ */}
+      <Route path="/create_question" element={isAdminOrMaster ? <CreateQuestion /> : <Navigate to="/login" />} />
 
       {/* --- デフォルトルート --- */}
       <Route

@@ -1,12 +1,12 @@
 :root {
   /* 明るい背景を基本に設定（ライトモードを優先） */
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.6; /* 行間を広げて読みやすく */
+  line-height: 1.6;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: #1a1a1a; /* ベースの文字色を濃く */
-  background-color: #f7f9fa; /* ややオフホワイトの背景 */
+  color: #1a1a1a;
+  background-color: #f7f9fa;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -18,61 +18,61 @@
 
 body {
   margin: 0;
+  min-width: 100vw;
+  min-height: 100vh;
+  box-sizing: border-box; 
+  /* ★★★ 以下の行を削除しました ★★★
   display: flex;
-  /* 画面中央にコンテンツを配置し、最小幅を設定 */
   justify-content: center;
   align-items: center;
-  min-width: 100vw; /* 画面幅いっぱいに */
-  min-height: 100vh;
-  /* アプリケーションのコンテンツを制限する最大幅を設定 */
   padding: 2rem;
-  box-sizing: border-box; 
+  */
 }
 
 /* ------------------ タイポグラフィとリンク ------------------ */
 
 h1 {
-  font-size: 2.8em; /* ややサイズダウンし、落ち着いた印象に */
+  font-size: 2.8em;
   line-height: 1.2;
-  font-weight: 700; /* 太字を強調 */
-  color: #334155; /* 濃いめの見出し色 */
+  font-weight: 700;
+  color: #334155;
   margin-bottom: 0.5em;
 }
 
 a {
   font-weight: 600;
-  color: #0d6efd; /* Bootstrapのプライマリカラーのような鮮やかな青 */
-  text-decoration: none; /* デフォルトの下線を削除 */
-  transition: color 0.3s ease-out; /* ホバー時にスムーズな変化 */
+  color: #0d6efd;
+  text-decoration: none;
+  transition: color 0.3s ease-out;
 }
 a:hover {
   color: #0a58ca;
-  text-decoration: underline; /* ホバーで下線を表示 */
+  text-decoration: underline;
 }
 
 /* ------------------ ボタンの改善 ------------------ */
 
 button {
   border-radius: 6px;
-  border: none; /* 枠線を削除し、フラットデザインに */
-  padding: 0.75em 1.5em; /* パディングを増やして押しやすく */
+  border: none;
+  padding: 0.75em 1.5em;
   font-size: 0.95em;
   font-weight: 600;
   font-family: inherit;
-  background-color: #0d6efd; /* プライマリカラーの背景 */
-  color: #ffffff; /* 白抜き文字 */
+  background-color: #0d6efd;
+  color: #ffffff;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* わずかな影で立体感を */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: background-color 0.3s ease, transform 0.1s ease;
 }
 button:hover {
-  background-color: #0b5ed7; /* ホバーで少し暗く */
-  transform: translateY(-1px); /* わずかに浮き上がるアニメーション */
+  background-color: #0b5ed7;
+  transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 button:focus,
 button:focus-visible {
-  outline: 4px solid rgba(13, 110, 253, 0.5); /* フォーカスリングを目立たせる */
+  outline: 4px solid rgba(13, 110, 253, 0.5);
   outline-offset: 2px;
 }
 
@@ -80,8 +80,8 @@ button:focus-visible {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    color: #e0e0e0; /* 明るい文字色 */
-    background-color: #121212; /* より深い背景色 */
+    color: #e0e0e0;
+    background-color: #121212;
   }
   h1 {
     color: #ffffff;
@@ -93,12 +93,26 @@ button:focus-visible {
     color: #5aa1e7;
   }
   button {
-    background-color: #304e6c; /* ダークモードでも目立つボタン色 */
+    background-color: #304e6c;
     color: #ffffff;
     box-shadow: none;
   }
   button:hover {
     background-color: #406b94;
-    transform: none; /* ダークモードでは浮き上がりアニメーションをオフ */
+    transform: none;
+  }
+
+  /* ★★★ ダークモード用のテーブルスタイル（おまけ） ★★★ */
+  .table-dark {
+    background-color: #212529;
+    color: #e4e6eb;
+  }
+  .table-dark th,
+  .table-dark td,
+  .table-dark thead th {
+    border-color: #373b3e;
+  }
+  .table-hover .table-dark:hover {
+    background-color: #32383e;
   }
 }
