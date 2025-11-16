@@ -11,9 +11,12 @@ import GenreSelect from './components/GenreSelect';
 import QuizQuestion from './components/QuizQuestion';
 import QuizResults from './components/QuizResults';
 import RegisterStaff from './components/RegisterStaff';
-
-// ★★★ 1. CreateQuestionコンポーネントをインポートします ★★★
 import CreateQuestion from './components/CreateQuestion';
+import LogViewer from './components/LogViewer'; 
+import MyResults from './components/MyResults'; 
+
+// ★ 1. DeveloperFlowをインポート
+import DeveloperFlow from './components/DeveloperFlow'; 
 
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
@@ -23,42 +26,43 @@ function App() {
   const isAdminOrMaster = auth && (auth.role === 'admin' || auth.role === 'master');
   
   return (
-    <Routes>
-      {/* --- ログイン・新規登録ルート --- */}
-      <Route path="/login" element={auth ? <Navigate to="/" /> : <Login />} />
-      <Route path="/signup" element={auth ? <Navigate to="/" /> : <Signup />} />
-      
-      {/* --- 認証が必要なルート --- */}
-      <Route path="/dashboard" element={auth ? <UserDashboard /> : <Navigate to="/login" />} />
-      
-      {/* --- クイズ機能のルート --- */}
-      <Route path="/genre" element={auth ? <GenreSelect /> : <Navigate to="/login" />} />
-      <Route path="/question" element={auth ? <QuizQuestion /> : <Navigate to="/login" />} />
-      <Route path="/kekka" element={auth ? <QuizResults /> : <Navigate to="/login" />} />
-      
-      {/* --- 管理者用のルート --- */}
-      <Route path="/admin" element={isAdminOrMaster ? <AdminDashboard /> : <Navigate to="/login" />} />
-      <Route path="/users" element={isAdminOrMaster ? <UserList /> : <Navigate to="/login" />} />
-      <Route path="/register_company" element={auth && auth.role === 'master' ? <RegisterCompany /> : <Navigate to="/login" />} />
-      <Route path="/q_list" element={isAdminOrMaster ? <QuestionManager /> : <Navigate to="/login" />} />
-      <Route path="/view" element={isAdminOrMaster ? <TestResults /> : <Navigate to="/login" />} />
-      <Route path="/register_staff" element={isAdminOrMaster ? <RegisterStaff /> : <Navigate to="/login" />} />
+    <div style={{ width: '80%', margin: '0 auto', paddingTop: '2rem' }}>
+      <Routes>
+        {/* (他のルートは変更なし) */}
+        <Route path="/login" element={auth ? <Navigate to="/" /> : <Login />} />
+        <Route path="/signup" element={auth ? <Navigate to="/" /> : <Signup />} />
+        <Route path="/dashboard" element={auth ? <UserDashboard /> : <Navigate to="/login" />} />
+        <Route path="/my_results" element={auth ? <MyResults /> : <Navigate to="/login" />} />
+        <Route path="/genre" element={auth ? <GenreSelect /> : <Navigate to="/login" />} />
+        <Route path="/question" element={auth ? <QuizQuestion /> : <Navigate to="/login" />} />
+        <Route path="/kekka" element={auth ? <QuizResults /> : <Navigate to="/login" />} />
+        
+        {/* --- 管理者用のルート --- */}
+        <Route path="/admin" element={isAdminOrMaster ? <AdminDashboard /> : <Navigate to="/login" />} />
+        <Route path="/users" element={isAdminOrMaster ? <UserList /> : <Navigate to="/login" />} />
+        <Route path="/register_company" element={auth && auth.role === 'master' ? <RegisterCompany /> : <Navigate to="/login" />} />
+        <Route path="/q_list" element={isAdminOrMaster ? <QuestionManager /> : <Navigate to="/login" />} />
+        <Route path="/view" element={isAdminOrMaster ? <TestResults /> : <Navigate to="/login" />} />
+        <Route path="/register_staff" element={isAdminOrMaster ? <RegisterStaff /> : <Navigate to="/login" />} />
+        <Route path="/create_question" element={isAdminOrMaster ? <CreateQuestion /> : <Navigate to="/login" />} />
+        <Route path="/admin/logs" element={isAdminOrMaster ? <LogViewer /> : <Navigate to="/login" />} />
 
-      {/* ★★★ 2. /create_question のルートをここに追加します ★★★ */}
-      <Route path="/create_question" element={isAdminOrMaster ? <CreateQuestion /> : <Navigate to="/login" />} />
+        {/* ★ 2. 開発者フローページのルートを追加 ★ */}
+        <Route path="/dev/flow" element={isAdminOrMaster ? <DeveloperFlow /> : <Navigate to="/login" />} />
 
-      {/* --- デフォルトルート --- */}
-      <Route
-        path="*"
-        element={
-          auth ? (
-            isAdminOrMaster ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />
-          ) : (
-            <Navigate to="/login" />
-          )
-        }
-      />
-    </Routes>
+        {/* (デフォルトルートは変更なし) */}
+        <Route
+          path="*"
+          element={
+            auth ? (
+              isAdminOrMaster ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+      </Routes>
+    </div>
   );
 }
 

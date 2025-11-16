@@ -6,8 +6,10 @@ from datetime import datetime, timedelta, timezone
 import logging
 import json
 import random
+import os # os.path が必要なのでインポート
 
 from .db import query_db, execute_db, get_db 
+from .log_manager import log_w 
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -78,8 +80,7 @@ def login():
     else:
         return jsonify({'message': '認証情報が無効です'}), 401
 
-# --- 問題管理API (マスター・管理者用) ---
-
+# --- 問題管理API ---
 @api_bp.route('/questions', methods=['GET'])
 @roles_required(['master', 'admin'])
 def get_questions():
@@ -149,7 +150,6 @@ def get_quiz_genres():
         genres_rows = query_db(query, params)
         all_genres = set()
         for row in genres_rows:
-            # バグ修正: row['genre']がNoneの場合に備える
             genres = [g.strip() for g in (row['genre'] or '').split(':') if g.strip()] 
             all_genres.update(genres)
         return jsonify(sorted(list(all_genres)))
@@ -186,39 +186,70 @@ def start_quiz():
 @api_bp.route('/quiz/submit_answer', methods=['POST'])
 @auth_required
 def submit_answer():
-    # ★★★ デバッグログ 1: 関数が呼ばれたことを確認 ★★★
-    logger.info("--- submit_answer関数が開始されました (最新版) ---")
-    logger.info(f"--- 受け取ったID: {request.get_json().get('question_id')} ---")
-    logger.info("--- これからDBにクエリを発行します ---")
-        
     data = request.get_json()
-    question_id, user_answer_list, session_id = data.get('question_id'), data.get('user_answer', []), data.get('session_id')
-    if question_id is None or user_answer_list is None or session_id is None:
-        return jsonify({'message': '必須データが不足しています'}), 400
+    question_id = data.get('question_id')
+    user_answer_list = data.get('user_answer', [])
+    session_id = data.get('session_id')
+    start_time_iso = data.get('start_time_iso')
+
+    if question_id is None:
+        return jsonify({'message': 'question_id がありません'}), 400
         
-    question = query_db("SELECT answer, explanation FROM questions WHERE id = ?", [question_id], one=True)
-    if not question: return jsonify({'message': '問題が見つかりません'}), 404
+    question = query_db("SELECT answer, explanation, genre, title FROM questions WHERE id = ?", [question_id], one=True)
+    if not question: 
+        return jsonify({'message': '問題が見つかりません'}), 404
     
-    # バグ修正: question['answer']がNoneの場合に備える
     correct_answer_set = set(ans.strip() for ans in (question['answer'] or '').split(':') if ans.strip())
-    
     user_answer_set = set(ans.strip() for ans in user_answer_list if ans.strip())
     is_correct = (user_answer_set == correct_answer_set)
     
-    user_answer_str = json.dumps(user_answer_list, ensure_ascii=False)
-    timestamp = datetime.now(timezone.utc).isoformat()
-    
+    jst_now = datetime.now(timezone(timedelta(hours=9)))
+    end_time = jst_now 
+    start_time = None
+    elapsed_time_sec = None
+
+    if start_time_iso:
+        try:
+            start_time_utc = datetime.fromisoformat(start_time_iso.replace('Z', '+00:00'))
+            start_time = start_time_utc.astimezone(timezone(timedelta(hours=9)))
+            elapsed_time_sec = (end_time - start_time).total_seconds()
+        except Exception as e:
+            logger.warning(f"start_time_iso のパースに失敗: {e}")
+
     try:
-        execute_db("INSERT INTO results (user_id, question_id, session_id, user_answer, is_correct, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-                   [g.current_user_id, question_id, session_id, user_answer_str, is_correct, timestamp])
+        log_data = {
+            "date": jst_now.strftime('%Y-%m-%d'),
+            "name": g.current_username,
+            "genre": question['genre'],
+            "qmap": None, 
+            "question_id": question_id,
+            "question_title": question['title'],
+            "start_time": start_time.strftime('%H:%M:%S') if start_time else None,
+            "end_time": end_time.strftime('%H:%M:%S'),
+            "elapsed_time": elapsed_time_sec,
+            "user_choice": user_answer_list,
+            "correct_answers": list(correct_answer_set),
+            "result": "正解" if is_correct else f"不正解。正しい答えは: {', '.join(correct_answer_set)}",
+            "kaisetsu": question['explanation']
+        }
+        log_w(log_data)
+    except Exception as e:
+        logger.error(f"ログの生成または書き込みに失敗しました: {e}", exc_info=True)
+
+    try:
+        user_answer_str = json.dumps(user_answer_list, ensure_ascii=False)
+        utc_timestamp_str = datetime.now(timezone.utc).isoformat()
         
-        # ★★★ デバッグログ 2: 成功したことを確認 ★★★
-        logger.info("--- 解答のDB保存に成功しました ---")
+        execute_db("INSERT INTO results (user_id, question_id, session_id, user_answer, is_correct, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+                   [g.current_user_id, question_id, session_id, user_answer_str, is_correct, utc_timestamp_str])
                    
-        return jsonify({'is_correct': is_correct, 'correct_answer': list(correct_answer_set), 'explanation': question['explanation']}), 200
+        return jsonify({
+            'is_correct': is_correct, 
+            'correct_answer': list(correct_answer_set), 
+            'explanation': question['explanation']
+        }), 200
     except sqlite3.Error as e:
-        # ★★★ デバッグログ 3: 失敗した場合のエラー詳細を出力 ★★★
-        logger.error(f"--- DB保存中にエラーが発生: {e} ---", exc_info=True)
+        logger.error(f"DB保存中にエラーが発生: {e}", exc_info=True)
         return jsonify({'message': f'結果の保存に失敗しました: {e}'}), 500
 
 # --- 成績・結果取得API ---
@@ -317,3 +348,23 @@ def register_company():
     except sqlite3.Error as e:
         get_db().rollback()
         return jsonify({'message': f'データベースエラー: {e}'}), 500
+
+# --- ログ閲覧API ---
+@api_bp.route('/admin/logs', methods=['GET'])
+@roles_required(['master', 'admin'])
+def get_logs():
+    log_file_path = current_app.config.get('LOG_FILE_PATH')
+    logs = []
+    if not log_file_path or not os.path.exists(log_file_path):
+        return jsonify([{'level': 'ERROR', 'message': 'ログファイルが見つかりません。'}])
+    try:
+        with open(log_file_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            for line in lines:
+                try:
+                    logs.append(json.loads(line))
+                except json.JSONDecodeError:
+                    logs.append({'time': 'N/A', 'level': 'RAW', 'message': line.strip()})
+        return jsonify(logs[::-1][:100])
+    except Exception as e:
+        return jsonify([{'level': 'ERROR', 'message': f'ログの読み込みに失敗しました: {e}'}]), 500

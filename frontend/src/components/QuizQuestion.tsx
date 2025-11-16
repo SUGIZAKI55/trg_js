@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -14,38 +14,62 @@ const QuizQuestion: React.FC = () => {
 
   const { questions, session_id } = location.state as { questions: Question[], session_id: string };
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0); 
   const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
-  const [result, setResult] = useState<AnswerResult | null>(null);
-  const [quizResults, setQuizResults] = useState<boolean[]>([]);
+  const [result, setResult] = useState<AnswerResult | null>(null); 
+  const [quizResults, setQuizResults] = useState<boolean[]>([]); 
 
-  // (関数のロジックは変更なし)
+  // ★★★ 1. 問題の表示開始時刻を保存するstateを追加 ★★★
+  const [startTime, setStartTime] = useState<Date | null>(null);
+
   const currentQuestion = questions[currentIndex];
   const options = currentQuestion.choices.split(':').map(opt => opt.trim());
 
+  // ★★★ 2. 問題が切り替わるたびに、開始時刻を記録する ★★★
+  useEffect(() => {
+    // 新しい問題が表示されたので、現在時刻を記録
+    setStartTime(new Date()); 
+  }, [currentIndex]); // currentIndexが変わるたびに実行
+
+  // 解答を送信する処理
   const handleSubmitAnswer = async () => {
     if (selectedAnswers.length === 0) {
       alert('解答を選択してください。');
       return;
     }
+    // ★★★ 3. startTimeが記録されているか確認 ★★★
+    if (!startTime) {
+      alert('エラー: 開始時刻が記録されていません。');
+      return;
+    }
+
     try {
       const res = await axios.post('/api/quiz/submit_answer', 
-        { question_id: currentQuestion.id, user_answer: selectedAnswers, session_id: session_id },
+        {
+          question_id: currentQuestion.id,
+          user_answer: selectedAnswers,
+          session_id: session_id,
+          // ★★★ 4. 記録した開始時刻 (ISO形式) をAPIに送信 ★★★
+          start_time_iso: startTime.toISOString() 
+        },
         { headers: { Authorization: `Bearer ${auth?.token}` } }
       );
+      
       const answerResult: AnswerResult = res.data;
-      setResult(answerResult);
+      setResult(answerResult); 
       setQuizResults([...quizResults, answerResult.is_correct]);
-    } catch (err) {
-      // ★★★「動かない」場合、ここにエラーが出ている可能性が高いです★★★
+      
+    } catch (err: any) {
       console.error("解答送信エラー:", err); 
-      alert('解答の送信に失敗しました。コンソールを確認してください。');
+      alert(err.response?.data?.message || '解答の送信に失敗しました。');
     }
   };
 
+  // (handleNext, handleCheckboxChange は変更なし)
   const handleNext = () => {
     setResult(null);
     setSelectedAnswers([]);
+    
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
@@ -55,14 +79,16 @@ const QuizQuestion: React.FC = () => {
   
   const handleCheckboxChange = (option: string) => {
     setSelectedAnswers(prev => 
-      prev.includes(option) ? prev.filter(item => item !== option) : [...prev, option]
+      prev.includes(option) 
+        ? prev.filter(item => item !== option)
+        : [...prev, option]
     );
   };
 
+  // (return文の見た目は変更なし)
   return (
     <div className="container mt-5" style={{ maxWidth: '800px' }}>
       <div className="card">
-        {/* (カードヘッダーは変更なし) */}
         <div className="card-header">
           <h5>問題 {currentIndex + 1} / {questions.length}</h5>
         </div>
@@ -71,7 +97,6 @@ const QuizQuestion: React.FC = () => {
           
           <div className="form-group">
             {options.map((opt) => (
-              // ★★★ スタイル修正点 1: マージンを追加 ★★★
               <div key={opt} className="form-check mb-2"> 
                 <input
                   type="checkbox"
@@ -82,7 +107,6 @@ const QuizQuestion: React.FC = () => {
                   onChange={() => handleCheckboxChange(opt)}
                   disabled={!!result}
                 />
-                {/* ★★★ スタイル修正点 2: ラベルに改行スタイルを適用 ★★★ */}
                 <label 
                   className="form-check-label" 
                   htmlFor={opt} 
