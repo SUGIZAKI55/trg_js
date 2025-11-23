@@ -19,10 +19,18 @@ def import_data_from_txt(master_username):
         logger.error(f"エラー: テキストファイル '{QUIZ_TXT_FILE}' が見つかりません。")
         return
 
+    if not os.path.exists(DATABASE_FILE):
+        logger.error(f"エラー: データベース '{DATABASE_FILE}' が見つかりません。先に 'flask run' でDBを作成してください。")
+        return
+
     try:
         conn = sqlite3.connect(DATABASE_FILE)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
+        
+        # 外部キー制約を有効化（データの整合性を保つため）
+        cursor.execute("PRAGMA foreign_keys = ON")
+        
     except sqlite3.Error as e:
         logger.error(f"データベース接続エラー: {e}")
         return
@@ -42,12 +50,26 @@ def import_data_from_txt(master_username):
         conn.close()
         return
 
-    # --- 2. 既存の問題データをクリア ---
+    # --- 2. 既存の問題データと成績データをクリア ---
+    # ★★★ ここが重要です：ユーザーは消さずに、問題と成績だけ消します ★★★
     try:
+        # 先に成績(results)を消さないと、外部キー制約で問題(questions)が消せません
+        logger.info("既存の成績データ(results)をクリアしています...")
+        cursor.execute("DELETE FROM results")
+        
+        # IDの連番をリセットしたい場合は sqlite_sequence も操作しますが、通常はDELETEだけでOK
+        logger.info("既存の問題データ(questions)をクリアしています...")
         cursor.execute("DELETE FROM questions")
-        logger.info("'questions' テーブルのデータをクリアしました。")
+        
+        # IDを1から振り直したい場合は以下の2行のコメントを外してください
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name='results'")
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name='questions'")
+        
+        conn.commit()
+        logger.info("テーブルのクリア完了。ユーザーデータは保持されています。")
+        
     except sqlite3.Error as e:
-        logger.error(f"既存の質問データ削除中にエラー: {e}")
+        logger.error(f"データ削除中にエラー: {e}")
         conn.close()
         return
 
@@ -63,49 +85,35 @@ def import_data_from_txt(master_username):
     questions_to_insert = []
     line_index = 0
 
-    # ★★★ ここからが修正の核心です ★★★
-    # 複数行の選択肢を正しく読み込むようにパーサーを修正
+    # 複数行の選択肢を正しく読み込むロジック
     while line_index < len(lines):
         line = lines[line_index]
         
-        # '承知いたしました'で始まるヘッダーセクションをスキップ
         if line.startswith('承知いたしました') or line.startswith('**'):
             line_index += 1
             continue
 
-        # 数字（問題番号）でブロックの開始を検知
         if line.isdigit():
             current_question = {}
-            line_index += 1 # 問題番号をスキップ
+            line_index += 1 
             
             try:
                 # 1. ジャンル
                 current_question["genre"] = lines[line_index]
                 line_index += 1
-                
-                # 2. 問題文 (Title)
+                # 2. 問題文
                 current_question["title"] = lines[line_index]
                 line_index += 1
-                
-                # 3. 選択肢 (4行を読み込む)
+                # 3. 選択肢 (4行)
                 choices_list = []
-                choices_list.append(lines[line_index])
-                line_index += 1
-                choices_list.append(lines[line_index])
-                line_index += 1
-                choices_list.append(lines[line_index])
-                line_index += 1
-                choices_list.append(lines[line_index])
-                line_index += 1
-                
-                # 4行の選択肢を ':' で連結して1つの文字列にする
+                for _ in range(4):
+                    choices_list.append(lines[line_index])
+                    line_index += 1
                 current_question["choices"] = ":".join(choices_list)
-                
-                # 4. 正解 (Answer)
+                # 4. 正解
                 current_question["answer"] = lines[line_index]
                 line_index += 1
-                
-                # 5. 解説 (Explanation)
+                # 5. 解説
                 current_question["explanation"] = lines[line_index]
                 line_index += 1
 
@@ -115,22 +123,16 @@ def import_data_from_txt(master_username):
                 logger.warning(f"問題番号 {line} の周辺でデータの形式が不正です。インポートを中断します。")
                 break
         else:
-            # 予期しない行はスキップ
             line_index += 1
-    # ★★★ 修正ここまで ★★★
 
     if not questions_to_insert:
-        logger.warning("テキストファイルからインポートする質問が見つかりませんでした。")
+        logger.warning("インポートする質問が見つかりませんでした。")
         conn.close()
         return
         
     # --- 4. データベースに登録 ---
     try:
         for q_data in questions_to_insert:
-            if not all(k in q_data for k in ["genre", "title", "choices", "answer"]):
-                logger.warning(f"スキップ: 必須フィールドが不足しています。 {q_data}")
-                continue
-            
             cursor.execute("""
                 INSERT INTO questions (creator_id, genre, title, choices, answer, explanation)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -144,7 +146,7 @@ def import_data_from_txt(master_username):
             ))
         
         conn.commit()
-        logger.info(f"成功: {len(questions_to_insert)} 件の質問をデータベースにインポートしました。")
+        logger.info(f"成功: {len(questions_to_insert)} 件の質問をインポートしました。ユーザーデータはそのままです。")
     except sqlite3.Error as e:
         logger.error(f"データ挿入エラー: {e}")
         conn.rollback()
@@ -153,8 +155,8 @@ def import_data_from_txt(master_username):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print("エラー: 作成者となるマスターユーザーのユーザー名を指定してください。")
-        print("使い方: python3 flask_api/import_quiz_data.py <master_username>")
+        print("エラー: 作成者となるユーザー名を指定してください。")
+        print("使い方: python3 flask_api/import_quiz_data.py <username>")
         sys.exit(1)
     
     master_username_arg = sys.argv[1]

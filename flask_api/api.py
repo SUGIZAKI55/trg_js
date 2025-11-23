@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 import json
 import random
-import os # os.path が必要なのでインポート
+import os
 
 from .db import query_db, execute_db, get_db 
 from .log_manager import log_w 
@@ -14,7 +14,7 @@ from .log_manager import log_w
 logger = logging.getLogger(__name__)
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-# --- 認証/認可ヘルパー関数 ---
+# --- 認証/認可ヘルパー関数 (変更なし) ---
 def auth_required(f):
     from functools import wraps
     @wraps(f)
@@ -24,7 +24,7 @@ def auth_required(f):
             auth_header = request.headers['Authorization']
             if auth_header.startswith('Bearer '):
                 token = auth_header.split(" ")[1]
-        if not token: return jsonify({'message': '認証トークンがありません'}), 401
+        if not token: return jsonify({'message': 'Authentication Token is missing!'}), 401
         try:
             data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
             g.current_user_id = data.get('user_id')
@@ -33,10 +33,10 @@ def auth_required(f):
             user_data = query_db('SELECT company_id FROM users WHERE id = ?', [g.current_user_id], one=True)
             g.current_user_company_id = user_data['company_id'] if user_data else None
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
-            return jsonify({'message': 'トークンが無効か期限切れです'}), 401
+            return jsonify({'message': 'Token is invalid or expired!'}), 401
         except Exception as e:
-            logger.error(f"認証エラー: {e}", exc_info=True)
-            return jsonify({'message': '予期せぬエラーが発生しました'}), 500
+            logger.error(f"Authentication error: {e}", exc_info=True)
+            return jsonify({'message': 'An unexpected error occurred.'}), 500
         return f(*args, **kwargs)
     return decorated_function
 
@@ -47,12 +47,12 @@ def roles_required(roles):
         @auth_required
         def decorated_function(*args, **kwargs):
             if not hasattr(g, 'current_user_role') or g.current_user_role not in roles:
-                return jsonify({'message': 'この操作を行う権限がありません'}), 403
+                return jsonify({'message': 'Permission denied.'}), 403
             return f(*args, **kwargs)
         return decorated_function
     return decorator
 
-# --- 認証API ---
+# --- 既存API (変更なし) ---
 @api_bp.route('/auth/signup', methods=['POST'])
 def signup():
     data = request.get_json()
@@ -60,7 +60,6 @@ def signup():
     if not all([username, password]): return jsonify({'message': 'ユーザー名とパスワードは必須です'}), 400
     if query_db('SELECT id FROM users WHERE username = ?', [username], one=True):
         return jsonify({'message': f'ユーザー {username} は既に使用されています'}), 400
-    
     user_count_row = query_db('SELECT COUNT(id) as count FROM users', one=True)
     role = 'master' if user_count_row and user_count_row['count'] == 0 else 'user'
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
@@ -80,7 +79,6 @@ def login():
     else:
         return jsonify({'message': '認証情報が無効です'}), 401
 
-# --- 問題管理API ---
 @api_bp.route('/questions', methods=['GET'])
 @roles_required(['master', 'admin'])
 def get_questions():
@@ -89,7 +87,6 @@ def get_questions():
     if g.current_user_role == 'admin':
         query += " WHERE company_id = ? OR company_id IS NULL"
         params.append(g.current_user_company_id)
-    
     questions = query_db(query, params)
     return jsonify([dict(row) for row in questions])
 
@@ -97,8 +94,7 @@ def get_questions():
 @roles_required(['master', 'admin'])
 def get_question(question_id):
     question = query_db("SELECT id, genre, title, choices, answer, explanation FROM questions WHERE id = ?", [question_id], one=True)
-    if not question:
-        return jsonify({'message': '問題が見つかりません'}), 404
+    if not question: return jsonify({'message': '問題が見つかりません'}), 404
     return jsonify(dict(question))
 
 @api_bp.route('/questions', methods=['POST'])
@@ -106,25 +102,20 @@ def get_question(question_id):
 def create_question():
     data = request.get_json()
     genre, title, choices, answer = data.get('genre'), data.get('title'), data.get('choices'), data.get('answer')
-    if not all([genre, title, choices, answer]):
-        return jsonify({'message': '必須項目が不足しています'}), 400
-    
+    if not all([genre, title, choices, answer]): return jsonify({'message': '必須項目が不足しています'}), 400
     company_id = g.current_user_company_id if g.current_user_role == 'admin' else None
     try:
         execute_db("INSERT INTO questions (creator_id, company_id, genre, title, choices, answer, explanation) VALUES (?, ?, ?, ?, ?, ?, ?)",
                    [g.current_user_id, company_id, genre, title, choices, answer, data.get('explanation', '')])
         return jsonify({'message': '問題が作成されました'}), 201
-    except sqlite3.Error as e:
-        return jsonify({'message': f'データベースエラー: {e}'}), 500
+    except sqlite3.Error as e: return jsonify({'message': f'データベースエラー: {e}'}), 500
 
 @api_bp.route('/questions/<int:question_id>', methods=['PUT'])
 @roles_required(['master', 'admin'])
 def update_question(question_id):
     data = request.get_json()
     genre, title, choices, answer = data.get('genre'), data.get('title'), data.get('choices'), data.get('answer')
-    if not all([genre, title, choices, answer]):
-        return jsonify({'message': '必須項目が不足しています'}), 400
-    
+    if not all([genre, title, choices, answer]): return jsonify({'message': '必須項目が不足しています'}), 400
     execute_db("UPDATE questions SET genre = ?, title = ?, choices = ?, answer = ?, explanation = ? WHERE id = ?",
                [genre, title, choices, answer, data.get('explanation', ''), question_id])
     return jsonify({'message': '問題が更新されました'}), 200
@@ -135,8 +126,6 @@ def delete_question(question_id):
     execute_db("DELETE FROM questions WHERE id = ?", [question_id])
     return jsonify({'message': '問題が削除されました'}), 200
 
-
-# --- クイズ実施API ---
 @api_bp.route('/quiz/genres', methods=['GET'])
 @auth_required
 def get_quiz_genres():
@@ -153,8 +142,7 @@ def get_quiz_genres():
             genres = [g.strip() for g in (row['genre'] or '').split(':') if g.strip()] 
             all_genres.update(genres)
         return jsonify(sorted(list(all_genres)))
-    except sqlite3.Error as e:
-        return jsonify({'message': f'データベースエラー: {e}'}), 500
+    except sqlite3.Error as e: return jsonify({'message': f'データベースエラー: {e}'}), 500
 
 @api_bp.route('/quiz/start', methods=['GET'])
 @auth_required
@@ -162,7 +150,6 @@ def start_quiz():
     genre = request.args.get('genre')
     count = request.args.get('count', 10, type=int)
     if not genre: return jsonify({'message': 'ジャンル指定は必須です'}), 400
-    
     search_genre = f"%{genre}%"
     company_id = g.current_user_company_id
     query = "SELECT id, title, choices, explanation FROM questions WHERE genre LIKE ? AND (company_id IS NULL"
@@ -172,16 +159,13 @@ def start_quiz():
         params.append(company_id)
     else:
         query += ")"
-    
     try:
         available_questions = query_db(query, params)
         if not available_questions: return jsonify({'message': 'このジャンルの問題が見つかりません'}), 404
-        
         selected_count = min(count, len(available_questions))
         questions_to_send = random.sample(available_questions, selected_count)
         return jsonify([dict(row) for row in questions_to_send])
-    except sqlite3.Error as e:
-        return jsonify({'message': f'データベースエラー: {e}'}), 500
+    except sqlite3.Error as e: return jsonify({'message': f'データベースエラー: {e}'}), 500
 
 @api_bp.route('/quiz/submit_answer', methods=['POST'])
 @auth_required
@@ -192,30 +176,22 @@ def submit_answer():
     session_id = data.get('session_id')
     start_time_iso = data.get('start_time_iso')
 
-    if question_id is None:
-        return jsonify({'message': 'question_id がありません'}), 400
-        
+    if question_id is None: return jsonify({'message': 'question_id がありません'}), 400
     question = query_db("SELECT answer, explanation, genre, title FROM questions WHERE id = ?", [question_id], one=True)
-    if not question: 
-        return jsonify({'message': '問題が見つかりません'}), 404
-    
+    if not question: return jsonify({'message': '問題が見つかりません'}), 404
     correct_answer_set = set(ans.strip() for ans in (question['answer'] or '').split(':') if ans.strip())
     user_answer_set = set(ans.strip() for ans in user_answer_list if ans.strip())
     is_correct = (user_answer_set == correct_answer_set)
-    
     jst_now = datetime.now(timezone(timedelta(hours=9)))
     end_time = jst_now 
     start_time = None
     elapsed_time_sec = None
-
     if start_time_iso:
         try:
             start_time_utc = datetime.fromisoformat(start_time_iso.replace('Z', '+00:00'))
             start_time = start_time_utc.astimezone(timezone(timedelta(hours=9)))
             elapsed_time_sec = (end_time - start_time).total_seconds()
-        except Exception as e:
-            logger.warning(f"start_time_iso のパースに失敗: {e}")
-
+        except Exception as e: logger.warning(f"start_time_iso のパースに失敗: {e}")
     try:
         log_data = {
             "date": jst_now.strftime('%Y-%m-%d'),
@@ -233,26 +209,17 @@ def submit_answer():
             "kaisetsu": question['explanation']
         }
         log_w(log_data)
-    except Exception as e:
-        logger.error(f"ログの生成または書き込みに失敗しました: {e}", exc_info=True)
-
+    except Exception as e: logger.error(f"ログの生成または書き込みに失敗しました: {e}", exc_info=True)
     try:
         user_answer_str = json.dumps(user_answer_list, ensure_ascii=False)
         utc_timestamp_str = datetime.now(timezone.utc).isoformat()
-        
         execute_db("INSERT INTO results (user_id, question_id, session_id, user_answer, is_correct, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
                    [g.current_user_id, question_id, session_id, user_answer_str, is_correct, utc_timestamp_str])
-                   
-        return jsonify({
-            'is_correct': is_correct, 
-            'correct_answer': list(correct_answer_set), 
-            'explanation': question['explanation']
-        }), 200
+        return jsonify({'is_correct': is_correct, 'correct_answer': list(correct_answer_set), 'explanation': question['explanation']}), 200
     except sqlite3.Error as e:
         logger.error(f"DB保存中にエラーが発生: {e}", exc_info=True)
         return jsonify({'message': f'結果の保存に失敗しました: {e}'}), 500
 
-# --- 成績・結果取得API ---
 @api_bp.route('/user/my_results', methods=['GET'])
 @auth_required
 def get_my_results():
@@ -263,8 +230,7 @@ def get_my_results():
             WHERE r.user_id = ? ORDER BY r.timestamp DESC
         """, [g.current_user_id])
         return jsonify([dict(r) for r in results])
-    except sqlite3.Error as e:
-        return jsonify({'message': f'データベースエラー: {e}'}), 500
+    except sqlite3.Error as e: return jsonify({'message': f'データベースエラー: {e}'}), 500
 
 @api_bp.route('/admin/results', methods=['GET'])
 @roles_required(['master', 'admin'])
@@ -280,42 +246,32 @@ def get_all_results():
         query += " WHERE u.company_id = ?"
         params.append(g.current_user_company_id)
     query += " ORDER BY r.timestamp DESC"
-    
     try:
         results = query_db(query, params)
         return jsonify([dict(r) for r in results])
-    except sqlite3.Error as e:
-        return jsonify({'message': f'データベースエラー: {e}'}), 500
+    except sqlite3.Error as e: return jsonify({'message': f'データベースエラー: {e}'}), 500
 
-# --- ユーザー & 企業管理API ---
 @api_bp.route('/admin/create_user', methods=['POST'])
 @roles_required(['admin', 'master'])
 def create_user():
     data = request.get_json()
     username, password, role = data.get('username'), data.get('password'), data.get('role', 'staff')
-    
     if not all([username, password]): return jsonify({'message': 'ユーザー名とパスワードは必須です'}), 400
-    if query_db('SELECT id FROM users WHERE username = ?', [username], one=True):
-        return jsonify({'message': 'そのユーザー名は既に使用されています'}), 400
-        
+    if query_db('SELECT id FROM users WHERE username = ?', [username], one=True): return jsonify({'message': 'そのユーザー名は既に使用されています'}), 400
     company_id = None
     if g.current_user_role == 'admin':
         company_id = g.current_user_company_id
-        if role not in ['staff', 'admin']:
-            return jsonify({'message': '管理者はstaffまたはadmin権限のユーザーのみ作成できます'}), 403
+        if role not in ['staff', 'admin']: return jsonify({'message': '管理者はstaffまたはadmin権限のユーザーのみ作成できます'}), 403
         if not company_id: return jsonify({'message': '管理者が企業に紐付いていません'}), 400
     elif g.current_user_role == 'master':
         company_id = data.get('company_id')
-        if role == 'master':
-             company_id = None
-    
+        if role == 'master': company_id = None
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     try:
         execute_db('INSERT INTO users (company_id, username, password_hash, role) VALUES (?, ?, ?, ?)', 
                    [company_id, username, hashed_password, role])
         return jsonify({'message': f'ユーザー {username} が {role} として作成されました'}), 201
-    except sqlite3.Error as e:
-        return jsonify({'message': f'データベースエラー: {e}'}), 500
+    except sqlite3.Error as e: return jsonify({'message': f'データベースエラー: {e}'}), 500
 
 @api_bp.route('/admin/users', methods=['GET'])
 @roles_required(['master', 'admin'])
@@ -349,22 +305,124 @@ def register_company():
         get_db().rollback()
         return jsonify({'message': f'データベースエラー: {e}'}), 500
 
-# --- ログ閲覧API ---
 @api_bp.route('/admin/logs', methods=['GET'])
 @roles_required(['master', 'admin'])
 def get_logs():
     log_file_path = current_app.config.get('LOG_FILE_PATH')
     logs = []
-    if not log_file_path or not os.path.exists(log_file_path):
-        return jsonify([{'level': 'ERROR', 'message': 'ログファイルが見つかりません。'}])
+    if not log_file_path or not os.path.exists(log_file_path): return jsonify([{'level': 'ERROR', 'message': 'ログファイルが見つかりません。'}])
     try:
         with open(log_file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
             for line in lines:
-                try:
-                    logs.append(json.loads(line))
-                except json.JSONDecodeError:
-                    logs.append({'time': 'N/A', 'level': 'RAW', 'message': line.strip()})
+                try: logs.append(json.loads(line))
+                except json.JSONDecodeError: logs.append({'time': 'N/A', 'level': 'RAW', 'message': line.strip()})
         return jsonify(logs[::-1][:100])
+    except Exception as e: return jsonify([{'level': 'ERROR', 'message': f'ログの読み込みに失敗しました: {e}'}]), 500
+
+# ★★★ 新規API 1: ダッシュボード用データ取得 ★★★
+@api_bp.route('/user/dashboard_data', methods=['GET'])
+@auth_required
+def get_dashboard_data():
+    try:
+        # ジャンルごとの正解率を集計
+        query = """
+            SELECT q.genre, COUNT(*) as total, SUM(CASE WHEN r.is_correct THEN 1 ELSE 0 END) as correct
+            FROM results r
+            JOIN questions q ON r.question_id = q.id
+            WHERE r.user_id = ?
+            GROUP BY q.genre
+        """
+        stats_rows = query_db(query, [g.current_user_id])
+        
+        genre_stats = {}
+        for row in stats_rows:
+            genre = row['genre']
+            total = row['total']
+            correct = row['correct']
+            accuracy = (correct / total) * 100 if total > 0 else 0
+            genre_stats[genre] = round(accuracy, 1)
+
+        # 復習可能な問題数（過去7日以内の不正解）
+        seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        review_query = """
+            SELECT COUNT(DISTINCT question_id) as count
+            FROM results
+            WHERE user_id = ? AND is_correct = 0 AND timestamp > ?
+        """
+        review_count_row = query_db(review_query, [g.current_user_id, seven_days_ago], one=True)
+        review_count = review_count_row['count'] if review_count_row else 0
+
+        return jsonify({
+            'genre_stats': genre_stats,
+            'review_count': review_count
+        })
+    except sqlite3.Error as e:
+        return jsonify({'message': f'Database error: {e}'}), 500
+
+# ★★★ 新規API 2: 復習クイズ開始 ★★★
+@api_bp.route('/quiz/review', methods=['GET'])
+@auth_required
+def start_review_quiz():
+    try:
+        seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        query = """
+            SELECT DISTINCT q.id, q.title, q.choices, q.explanation 
+            FROM results r
+            JOIN questions q ON r.question_id = q.id
+            WHERE r.user_id = ? AND r.is_correct = 0 AND r.timestamp > ?
+        """
+        review_questions = query_db(query, [g.current_user_id, seven_days_ago])
+        
+        if not review_questions:
+            return jsonify({'message': '復習対象の問題はありません。'}), 404
+            
+        selected_count = min(10, len(review_questions))
+        questions_to_send = random.sample(review_questions, selected_count)
+        return jsonify([dict(row) for row in questions_to_send])
+    except sqlite3.Error as e:
+        return jsonify({'message': f'Database error: {e}'}), 500
+
+# ★★★ 追加: 自分の詳細分析用データ取得API ★★★
+@api_bp.route('/user/analysis_data', methods=['GET'])
+@auth_required
+def get_my_analysis_data():
+    try:
+        # 自分の全回答ログ（時間情報付き）を取得
+        # DBのタイムスタンプはUTCなので、そのまま渡してフロントで計算しても良いですが
+        # ここでは計算用に必要な数値データを返します
+        query = """
+            SELECT 
+                r.is_correct, 
+                r.timestamp, 
+                q.genre, 
+                q.title 
+            FROM results r
+            JOIN questions q ON r.question_id = q.id
+            WHERE r.user_id = ?
+            ORDER BY r.timestamp ASC
+        """
+        rows = query_db(query, [g.current_user_id])
+        
+        # ログファイルから経過時間(elapsed_time)も取得したいところですが、
+        # 簡易化のため、今回はDBのタイムスタンプ間隔や、
+        # 以前実装したログファイル(log.ndjson)を読み込んでマッチングさせる方法もあります。
+        # ここでは「管理画面」と同じロジック（log.ndjson）を使うのが最も正確です。
+        
+        # log.ndjsonから自分のログだけを抽出
+        log_file_path = current_app.config.get('LOG_FILE_PATH')
+        my_logs = []
+        if log_file_path and os.path.exists(log_file_path):
+            with open(log_file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    try:
+                        log = json.loads(line)
+                        if log.get('name') == g.current_username:
+                            my_logs.append(log)
+                    except:
+                        pass
+                        
+        return jsonify(my_logs)
+
     except Exception as e:
-        return jsonify([{'level': 'ERROR', 'message': f'ログの読み込みに失敗しました: {e}'}]), 500
+        return jsonify({'message': f'Error: {e}'}), 500

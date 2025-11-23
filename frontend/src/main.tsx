@@ -10,13 +10,16 @@ import './App.css'
 // ★★★ ここからChart.jsの登録設定 ★★★
 import {
   Chart as ChartJS,
-  ArcElement, // ドーナツグラフ・円グラフ
-  Tooltip,    // グラフにホバーした時のツールチップ
-  Legend,     // 凡例
-  CategoryScale, // 棒グラフ（X軸）
-  LinearScale,   // 棒グラフ（Y軸）
-  BarElement,    // 棒グラフの「棒」
-  Title        // グラフタイトル
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  PointElement, // ★追加
+  LineElement,  // ★追加
+  RadialLinearScale, // ★追加 (レーダーチャート用)
 } from 'chart.js';
 
 ChartJS.register(
@@ -26,7 +29,10 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
-  Title
+  Title,
+  PointElement, // ★追加
+  LineElement,  // ★追加
+  RadialLinearScale // ★追加
 );
 // ★★★ 登録ここまで ★★★
 

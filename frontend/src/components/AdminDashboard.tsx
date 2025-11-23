@@ -80,6 +80,9 @@ const AdminDashboard: React.FC = () => {
             <button className="btn btn-info btn-sm" style={buttonStyle} onClick={() => navigate('/dev/flow')}>
               動作フロー確認
             </button>
+            <button className="btn btn-success btn-sm" style={buttonStyle} onClick={() => navigate('/admin/analysis')}>
+              学習傾向分析AI
+            </button>
             <button className="btn btn-danger btn-sm" style={buttonStyle} onClick={logout}>
               ログアウト
             </button>

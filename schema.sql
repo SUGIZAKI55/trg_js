@@ -20,8 +20,9 @@ CREATE TABLE IF NOT EXISTS companies (
 CREATE TABLE IF NOT EXISTS questions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   creator_id INTEGER NOT NULL,
-  company_id INTEGER, -- Nullの場合は共通問題
-  genre TEXT,
+  company_id INTEGER,
+  major_genre TEXT, -- ★追加: 大ジャンル
+  genre TEXT,       -- 小ジャンル（既存のgenre列）
   title TEXT NOT NULL,
   choices TEXT NOT NULL,
   answer TEXT NOT NULL,
