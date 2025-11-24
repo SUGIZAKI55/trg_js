@@ -16,9 +16,8 @@ import LogViewer from './components/LogViewer';
 import MyResults from './components/MyResults'; 
 import DeveloperFlow from './components/DeveloperFlow'; 
 import MyAnalysis from './components/MyAnalysis';
-
-// ★★★ 追加: LearnerAnalysisをインポート ★★★
 import LearnerAnalysis from './components/LearnerAnalysis';
+import BulkRegister from './components/BulkRegister'; // インポート
 
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
@@ -37,6 +36,7 @@ function App() {
         {/* --- 認証が必要なルート --- */}
         <Route path="/dashboard" element={auth ? <UserDashboard /> : <Navigate to="/login" />} />
         <Route path="/my_results" element={auth ? <MyResults /> : <Navigate to="/login" />} />
+        <Route path="/my_analysis" element={auth ? <MyAnalysis /> : <Navigate to="/login" />} />
         
         {/* --- クイズ機能のルート --- */}
         <Route path="/genre" element={auth ? <GenreSelect /> : <Navigate to="/login" />} />
@@ -53,12 +53,8 @@ function App() {
         <Route path="/create_question" element={isAdminOrMaster ? <CreateQuestion /> : <Navigate to="/login" />} />
         <Route path="/admin/logs" element={isAdminOrMaster ? <LogViewer /> : <Navigate to="/login" />} />
         <Route path="/dev/flow" element={isAdminOrMaster ? <DeveloperFlow /> : <Navigate to="/login" />} />
-
-        {/* ★★★ 追加: 学習タイプ診断ページ ★★★ */}
-        <Route path="/my_analysis" element={auth ? <MyAnalysis /> : <Navigate to="/login" />} />
-
-        {/* ★★★ 追加: 学習傾向分析ページのルート ★★★ */}
         <Route path="/admin/analysis" element={isAdminOrMaster ? <LearnerAnalysis /> : <Navigate to="/login" />} />
+        <Route path="/admin/bulk" element={isAdminOrMaster ? <BulkRegister /> : <Navigate to="/login" />} />
 
         {/* --- デフォルトルート --- */}
         <Route

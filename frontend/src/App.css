@@ -1,89 +1,306 @@
-/* --- モダンなダークモードの基本設定 --- */
-body {
-  background-color: #121212;
-  color: #e4e6eb;
-  padding-top: 2rem;
-  padding-bottom: 2rem;
-}
+/* --- フォントのインポート --- */
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap');
 
-/* --- カード (フォームの背景) --- */
-.card {
-  background-color: #1e1e1e;
-  border: 1px solid #333;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* --- フォーム部品のスタイル --- */
-.form-label {
-  display: block; 
-  width: 100%;
-  font-weight: 600;
-  color: #adb5bd;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  margin-bottom: 0.75rem;
-}
-
-.form-control,
-.form-select {
-  display: block; 
-  width: 100%;    
-
-  /* ★★★ 修正点: 入力欄が広がりすぎないよう最大幅を設定 ★★★ */
-  max-width: 720px; 
+/* --- 色の定義 (Koinobori Logo Colors) --- */
+:root {
+  /* ロゴから抽出したグラデーションカラー */
+  --grad-start: #00ADEF; /* シアン (C100) */
+  --grad-end: #004D99;   /* ディープブルー (C100 + M70) */
   
-  background-color: #2a2a2a;
-  color: #e4e6eb;
-  border: 1px solid #444;
-  border-radius: 5px;
-  padding: 0.75rem 1rem;
+  /* テキストカラー */
+  --text-main: #003366;  /* 濃い紺色 (読みやすさ重視) */
+  --text-sub: #5c7c99;   /* 薄い紺グレー */
+  
+  /* カード背景 (白に少し青みを混ぜる) */
+  --card-bg: rgba(255, 255, 255, 0.95);
 }
 
-/* ★★★ 修正点: 複数選択のselectは例外的に広げる ★★★ */
-select[multiple].form-select {
-  max-width: 100%; /* 正解欄は横幅いっぱいのままにする */
+body {
+  /* 背景を全面グラデーションに */
+  background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-end) 100%);
+  background-attachment: fixed; /* スクロールしても背景を固定 */
+  min-height: 100vh;
+  
+  color: var(--text-main);
+  font-family: "M PLUS Rounded 1c", sans-serif;
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+  line-height: 1.6;
+}
+
+/* --- テキストカラーの調整 --- */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--grad-end) !important; /* 見出しはディープブルー */
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+p, div, span, li, label {
+  color: var(--text-main);
+}
+
+/* ユーティリティクラスの上書き */
+.text-muted { color: var(--text-sub) !important; }
+.text-primary { color: var(--grad-end) !important; }
+.text-danger { color: #e74c3c !important; } /* エラー用は視認性のため赤を残す */
+
+
+/* --- 1. カードデザイン (白ベース・影付き) --- */
+.card {
+  background-color: var(--card-bg);
+  border: none;
+  border-radius: 24px;
+  /* グラデーション背景に映える、ふんわりした影 */
+  box-shadow: 0 10px 40px rgba(0, 20, 60, 0.2);
+  margin-bottom: 30px;
+  overflow: hidden;
+  backdrop-filter: blur(10px); /* すりガラス効果 */
+}
+
+.card-header {
+  background-color: transparent;
+  padding: 30px 40px 10px;
+  border-bottom: none;
+}
+
+.card-body {
+  padding: 20px 40px 50px;
+}
+
+/* --- 2. ボタンデザイン (グラデーション & 白抜き) --- */
+button.btn {
+  border: none;
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+  border-radius: 50px; /* 完ぺきな丸み (Pill shape) */
+  font-weight: 800;
+  padding: 14px 32px; /* ゆったりめのパディング */
+  transition: all 0.2s ease-out;
+  position: relative;
+  transform: translateY(0);
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* 浮いている影 */
+}
+
+/* ホバー時の動き */
+button.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* 押した時の動き */
+button.btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* メインアクション (グラデーションボタン) */
+.btn-primary, .btn-success, .btn-info {
+  background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-end) 100%);
+  color: #fff !important;
+}
+
+/* 注意・強調アクション (白地に青枠) */
+.btn-warning {
+  background-color: #fff;
+  color: var(--grad-end) !important;
+  border: 2px solid var(--grad-end);
+}
+.btn-warning:hover {
+  background-color: var(--grad-end);
+  color: #fff !important;
+}
+
+/* サブアクション (半透明の白) */
+.btn-secondary, .btn-danger, .btn-outline-secondary, .btn-outline-danger {
+  background-color: rgba(255, 255, 255, 0.8);
+  color: var(--text-sub) !important;
+  border: 1px solid #ddd;
+}
+.btn-secondary:hover, .btn-danger:hover {
+  background-color: #fff;
+  color: var(--text-main) !important;
+  border-color: #bbb;
+}
+
+/* ボタン無効化時 */
+button.btn:disabled {
+  background: #ccc !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+  transform: none !important;
 }
 
 
-.form-control:focus,
-.form-select:focus {
-  background-color: #2a2a2a;
-  color: #e4e6eb;
-  border-color: #007bff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+/* --- 3. 入力フォームデザイン --- */
+.form-label {
+  display: block;
+  color: var(--grad-end);
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+  font-weight: 800;
+}
+
+.form-control, .form-select {
+  width: 100%;
+  /* max-width は削除して親要素に合わせる */
+  padding: 16px 20px;
+  font-size: 16px;
+  border-radius: 16px;
+  border: 2px solid #e0e5ec;
+  background-color: #f9fbff;
+  color: var(--text-main);
+  transition: all 0.2s;
+  display: block;
+  font-weight: 600;
+}
+
+/* フォーカス時 */
+.form-control:focus, .form-select:focus {
+  border-color: var(--grad-start);
+  background-color: #fff;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(0, 173, 239, 0.2); /* シアンの光 */
 }
 
 .form-control::placeholder {
-  color: #6c757d;
+  color: #ccc;
 }
 
-.form-control option,
-.form-select option {
-  background-color: #333;
-  color: #e4e6eb;
+/* --- 4. テーブルデザイン --- */
+.table-responsive {
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  overflow: hidden;
+  background-color: #fff;
 }
 
-.form-text {
-  color: #6c757d !important;
+.table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-/* --- ボタン --- */
-.btn-primary {
-  font-weight: 600;
-}
-.btn-secondary {
-  font-weight: 600;
+/* ヘッダー (グラデーション) */
+.table th, .table thead th {
+  background: linear-gradient(135deg, var(--grad-start), var(--grad-end));
+  color: #fff;
+  font-weight: 700;
+  padding: 18px;
+  border: none;
+  white-space: nowrap;
 }
 
-/* --- ダッシュボードのボタン（変更なし） --- */
+/* ボディ */
+.table td {
+  padding: 18px;
+  border-bottom: 1px solid #eee;
+  color: var(--text-main);
+  vertical-align: middle;
+}
+
+/* ダークテーブル指定の強制上書き */
+.table-dark {
+  background-color: #fff !important;
+  color: var(--text-main) !important;
+}
+.table-dark th {
+  background: linear-gradient(135deg, var(--grad-start), var(--grad-end)) !important;
+  color: #fff !important;
+}
+.table-dark td {
+  color: var(--text-main) !important;
+  border-bottom: 1px solid #eee !important;
+}
+.table-dark.table-striped tbody tr:nth-of-type(odd) {
+  background-color: #f4f9ff !important; /* 非常に薄い青 */
+}
+
+/* --- 5. クイズ選択肢 --- */
+.form-check {
+  margin-bottom: 20px; /* スペースを広めに */
+  position: relative;
+}
+
+.form-check-input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.form-check-label {
+  display: block;
+  padding: 24px 30px;
+  background-color: #fff;
+  border: 2px solid #e0e5ec;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.1rem;
+  color: var(--text-main);
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+}
+
+.form-check-label:hover {
+  border-color: var(--grad-start);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(0, 173, 239, 0.15);
+}
+
+/* 選択時 (グラデーション枠) */
+.form-check-input:checked + .form-check-label {
+  background-color: #f0faff;
+  border-color: var(--grad-start);
+  color: var(--grad-end);
+  box-shadow: 0 0 0 2px var(--grad-start);
+}
+
+/* --- ダッシュボードのボタンレイアウト (スペース確保) --- */
 .dashboard-button-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-top: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 30px; /* ★ボタン同士の間隔を大きく広げました★ */
+  margin-top: 50px;
 }
+
 .dashboard-button {
-  padding: 2rem;
+  /* 正方形に近い形にして押しやすく */
+  width: 180px;
+  height: 180px;
+  border-radius: 30px; /* 丸く */
+  
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  
   font-size: 1.2rem;
+  background: #fff;
+  border: none;
+  color: var(--grad-end);
+  box-shadow: 0 10px 30px rgba(0, 77, 153, 0.15);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.dashboard-button:hover {
+  transform: translateY(-5px) scale(1.05); /* ホバーで大きく浮き上がる */
+  box-shadow: 0 20px 40px rgba(0, 173, 239, 0.3);
+  color: var(--grad-start);
+}
+
+/* 色付きダッシュボードボタンの上書き (白ベースに統一) */
+.dashboard-button.btn-primary, 
+.dashboard-button.btn-success, 
+.dashboard-button.btn-info, 
+.dashboard-button.btn-danger,
+.dashboard-button.btn-warning {
+  background: #fff !important;
+  color: var(--grad-end) !important;
 }

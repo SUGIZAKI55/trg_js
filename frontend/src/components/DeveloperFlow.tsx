@@ -1,9 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// 1. 表示したいフローのデータをここに定義します
-// (今回は代表的な3つのフローを定義しました)
-const flowData = [
+// --- 1. 型定義 (TypeScriptのエラーを解消) ---
+interface FlowStep {
+  actor: string;
+  action: string;
+}
+
+interface FlowData {
+  id: string;
+  title: string;
+  flow: FlowStep[];
+}
+
+// --- 2. データ定義 ---
+const flowData: FlowData[] = [
   {
     id: 'login',
     title: '① ログイン (/login)',
@@ -48,25 +59,60 @@ const flowData = [
   },
 ];
 
-// 2. アコーディオンの「部品」を定義
-const AccordionItem = ({ title, flow, isOpen, onToggle }) => (
-  <div className="accordion-item card shadow mb-2" style={{ backgroundColor: '#1e1e1e', borderColor: '#333' }}>
-    <h2 className="card-header" id={`heading-${title}`}>
+// --- 3. アコーディオンの「部品」コンポーネント ---
+// Propsの型を定義
+interface AccordionItemProps {
+  title: string;
+  flow: FlowStep[];
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+const AccordionItem: React.FC<AccordionItemProps> = ({ title, flow, isOpen, onToggle }) => (
+  // ダークモードの直書きスタイルを削除し、App.cssのクラスを活用
+  <div className="card shadow-sm mb-3" style={{ border: '1px solid #e0e5ec' }}>
+    <div 
+      className="card-header p-0" 
+      id={`heading-${title}`} 
+      style={{ backgroundColor: isOpen ? '#f0faff' : 'transparent', transition: '0.2s' }}
+    >
       <button
-        className="btn btn-link btn-block text-left"
+        className="btn btn-link btn-block text-left w-100 text-decoration-none"
         type="button"
         onClick={onToggle}
-        style={{ color: '#e4e6eb', textDecoration: 'none', fontSize: '1.2rem', fontWeight: 600, width: '100%' }}
+        style={{ 
+          textAlign: 'left', 
+          fontWeight: 'bold', 
+          fontSize: '1.1rem', 
+          color: isOpen ? '#004D99' : '#444', // 開いているときは青、閉じているときはグレー
+          padding: '15px 20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: 'none', // ボタンの影を消す
+          borderRadius: '20px 20px 0 0'
+        }}
       >
-        {title}
+        <span>{title}</span>
+        <span>{isOpen ? '▲' : '▼'}</span>
       </button>
-    </h2>
+    </div>
     {isOpen && (
-      <div className="card-body">
-        <ul className="list-group list-group-flush">
+      <div className="card-body bg-white" style={{ borderRadius: '0 0 20px 20px' }}>
+        <ul className="list-group list-group-flush" style={{ listStyle: 'none', padding: 0 }}>
           {flow.map((step, index) => (
-            <li key={index} className="list-group-item" style={{ backgroundColor: '#2a2a2a', borderColor: '#444' }}>
-              <strong style={{ color: '#0d6efd' }}>{step.actor}:</strong> {step.action}
+            <li key={index} style={{ 
+              padding: '12px 0', 
+              borderBottom: '1px dashed #eee',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <span style={{ color: '#00ADEF', fontWeight: 'bold', marginBottom: '4px' }}>
+                {step.actor}
+              </span>
+              <span style={{ color: '#555', paddingLeft: '10px' }}>
+                {step.action}
+              </span>
             </li>
           ))}
         </ul>
@@ -75,7 +121,7 @@ const AccordionItem = ({ title, flow, isOpen, onToggle }) => (
   </div>
 );
 
-// 3. アコーディオンをまとめる「ページ」本体
+// --- 4. メインコンポーネント ---
 const DeveloperFlow: React.FC = () => {
   const [openId, setOpenId] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -85,16 +131,17 @@ const DeveloperFlow: React.FC = () => {
   };
 
   return (
-    // App.tsxで全体に 'width: 80%' を設定したので、
-    // ここでは個別の 'style' を削除し、シンプルな 'div' にします
-    <div>
+    <div className="container mt-4" style={{ maxWidth: '900px' }}>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h1 className="h2 mb-0">アプリケーション動作フロー</h1>
         <button className="btn btn-outline-secondary" onClick={() => navigate('/admin')}>
           管理画面に戻る
         </button>
       </div>
-      <p className="text-muted">各機能をクリックすると、裏側で動いているソースコードとデータの流れが表示されます。</p>
+      
+      <div className="alert alert-info mb-4" style={{ backgroundColor: '#f0faff', border: '1px solid #00ADEF', color: '#004D99' }}>
+        <small>各機能をクリックすると、裏側で動いているソースコードとデータの流れが表示されます。</small>
+      </div>
       
       <div className="accordion">
         {flowData.map((item) => (

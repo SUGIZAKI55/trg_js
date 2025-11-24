@@ -14,7 +14,7 @@ from .log_manager import log_w
 logger = logging.getLogger(__name__)
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-# --- 認証/認可ヘルパー関数 (変更なし) ---
+# --- 認証/認可ヘルパー関数 ---
 def auth_required(f):
     from functools import wraps
     @wraps(f)
@@ -52,7 +52,7 @@ def roles_required(roles):
         return decorated_function
     return decorator
 
-# --- 既存API (変更なし) ---
+# --- 認証API ---
 @api_bp.route('/auth/signup', methods=['POST'])
 def signup():
     data = request.get_json()
@@ -79,6 +79,7 @@ def login():
     else:
         return jsonify({'message': '認証情報が無効です'}), 401
 
+# --- 問題管理API ---
 @api_bp.route('/questions', methods=['GET'])
 @roles_required(['master', 'admin'])
 def get_questions():
@@ -126,6 +127,7 @@ def delete_question(question_id):
     execute_db("DELETE FROM questions WHERE id = ?", [question_id])
     return jsonify({'message': '問題が削除されました'}), 200
 
+# --- クイズ実施API ---
 @api_bp.route('/quiz/genres', methods=['GET'])
 @auth_required
 def get_quiz_genres():
@@ -220,6 +222,7 @@ def submit_answer():
         logger.error(f"DB保存中にエラーが発生: {e}", exc_info=True)
         return jsonify({'message': f'結果の保存に失敗しました: {e}'}), 500
 
+# --- 成績・結果取得API ---
 @api_bp.route('/user/my_results', methods=['GET'])
 @auth_required
 def get_my_results():
@@ -251,6 +254,7 @@ def get_all_results():
         return jsonify([dict(r) for r in results])
     except sqlite3.Error as e: return jsonify({'message': f'データベースエラー: {e}'}), 500
 
+# --- ユーザー & 企業管理API ---
 @api_bp.route('/admin/create_user', methods=['POST'])
 @roles_required(['admin', 'master'])
 def create_user():
@@ -320,12 +324,11 @@ def get_logs():
         return jsonify(logs[::-1][:100])
     except Exception as e: return jsonify([{'level': 'ERROR', 'message': f'ログの読み込みに失敗しました: {e}'}]), 500
 
-# ★★★ 新規API 1: ダッシュボード用データ取得 ★★★
+# --- 新規API 1: ダッシュボード用データ取得 ---
 @api_bp.route('/user/dashboard_data', methods=['GET'])
 @auth_required
 def get_dashboard_data():
     try:
-        # ジャンルごとの正解率を集計
         query = """
             SELECT q.genre, COUNT(*) as total, SUM(CASE WHEN r.is_correct THEN 1 ELSE 0 END) as correct
             FROM results r
@@ -334,7 +337,6 @@ def get_dashboard_data():
             GROUP BY q.genre
         """
         stats_rows = query_db(query, [g.current_user_id])
-        
         genre_stats = {}
         for row in stats_rows:
             genre = row['genre']
@@ -342,8 +344,7 @@ def get_dashboard_data():
             correct = row['correct']
             accuracy = (correct / total) * 100 if total > 0 else 0
             genre_stats[genre] = round(accuracy, 1)
-
-        # 復習可能な問題数（過去7日以内の不正解）
+        
         seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         review_query = """
             SELECT COUNT(DISTINCT question_id) as count
@@ -352,15 +353,10 @@ def get_dashboard_data():
         """
         review_count_row = query_db(review_query, [g.current_user_id, seven_days_ago], one=True)
         review_count = review_count_row['count'] if review_count_row else 0
+        return jsonify({'genre_stats': genre_stats, 'review_count': review_count})
+    except sqlite3.Error as e: return jsonify({'message': f'Database error: {e}'}), 500
 
-        return jsonify({
-            'genre_stats': genre_stats,
-            'review_count': review_count
-        })
-    except sqlite3.Error as e:
-        return jsonify({'message': f'Database error: {e}'}), 500
-
-# ★★★ 新規API 2: 復習クイズ開始 ★★★
+# --- 新規API 2: 復習クイズ開始 ---
 @api_bp.route('/quiz/review', methods=['GET'])
 @auth_required
 def start_review_quiz():
@@ -373,43 +369,72 @@ def start_review_quiz():
             WHERE r.user_id = ? AND r.is_correct = 0 AND r.timestamp > ?
         """
         review_questions = query_db(query, [g.current_user_id, seven_days_ago])
-        
-        if not review_questions:
-            return jsonify({'message': '復習対象の問題はありません。'}), 404
-            
+        if not review_questions: return jsonify({'message': '復習対象の問題はありません。'}), 404
         selected_count = min(10, len(review_questions))
         questions_to_send = random.sample(review_questions, selected_count)
         return jsonify([dict(row) for row in questions_to_send])
-    except sqlite3.Error as e:
-        return jsonify({'message': f'Database error: {e}'}), 500
+    except sqlite3.Error as e: return jsonify({'message': f'Database error: {e}'}), 500
 
-# ★★★ 追加: 自分の詳細分析用データ取得API ★★★
+# --- 新規API 3: 弱点克服クイズ開始 ---
+@api_bp.route('/quiz/weak_start', methods=['GET'])
+@auth_required
+def start_weak_quiz():
+    try:
+        query = """
+            SELECT DISTINCT q.id, q.title, q.choices, q.explanation 
+            FROM results r
+            JOIN questions q ON r.question_id = q.id
+            WHERE r.user_id = ? AND r.is_correct = 0
+        """
+        weak_questions = query_db(query, [g.current_user_id])
+        if not weak_questions: return jsonify({'message': '弱点となる問題は見つかりませんでした。'}), 404
+        selected_count = min(10, len(weak_questions))
+        questions_to_send = random.sample(weak_questions, selected_count)
+        return jsonify([dict(row) for row in questions_to_send])
+    except sqlite3.Error as e: return jsonify({'message': f'Database error: {e}'}), 500
+
+# --- 新規API 4: 自信回復(ウォームアップ)クイズ開始 ---
+@api_bp.route('/quiz/start_easy', methods=['GET'])
+@auth_required
+def start_easy_quiz():
+    genre = request.args.get('genre')
+    count = request.args.get('count', 10, type=int)
+    try:
+        query = """
+            SELECT q.id, q.title, q.choices, q.explanation, 
+                   COALESCE(AVG(r.is_correct), 0) as accuracy
+            FROM questions q
+            LEFT JOIN results r ON q.id = r.question_id
+            WHERE 1=1
+        """
+        params = []
+        if genre:
+            query += " AND q.genre LIKE ?"
+            params.append(f"%{genre}%")
+        query += """
+            GROUP BY q.id
+            ORDER BY accuracy DESC, q.id ASC
+            LIMIT ?
+        """
+        params.append(count)
+        questions = query_db(query, params)
+        if not questions: return jsonify({'message': '問題が見つかりませんでした。'}), 404
+        return jsonify([dict(row) for row in questions])
+    except sqlite3.Error as e: return jsonify({'message': f'Database error: {e}'}), 500
+
+# --- 追加: 自分の詳細分析用データ取得API ---
 @api_bp.route('/user/analysis_data', methods=['GET'])
 @auth_required
 def get_my_analysis_data():
     try:
-        # 自分の全回答ログ（時間情報付き）を取得
-        # DBのタイムスタンプはUTCなので、そのまま渡してフロントで計算しても良いですが
-        # ここでは計算用に必要な数値データを返します
         query = """
-            SELECT 
-                r.is_correct, 
-                r.timestamp, 
-                q.genre, 
-                q.title 
+            SELECT r.is_correct, r.timestamp, q.genre, q.title 
             FROM results r
             JOIN questions q ON r.question_id = q.id
             WHERE r.user_id = ?
             ORDER BY r.timestamp ASC
         """
         rows = query_db(query, [g.current_user_id])
-        
-        # ログファイルから経過時間(elapsed_time)も取得したいところですが、
-        # 簡易化のため、今回はDBのタイムスタンプ間隔や、
-        # 以前実装したログファイル(log.ndjson)を読み込んでマッチングさせる方法もあります。
-        # ここでは「管理画面」と同じロジック（log.ndjson）を使うのが最も正確です。
-        
-        # log.ndjsonから自分のログだけを抽出
         log_file_path = current_app.config.get('LOG_FILE_PATH')
         my_logs = []
         if log_file_path and os.path.exists(log_file_path):
@@ -419,10 +444,138 @@ def get_my_analysis_data():
                         log = json.loads(line)
                         if log.get('name') == g.current_username:
                             my_logs.append(log)
-                    except:
-                        pass
-                        
+                    except: pass
         return jsonify(my_logs)
+    except Exception as e: return jsonify({'message': f'Error: {e}'}), 500
 
-    except Exception as e:
-        return jsonify({'message': f'Error: {e}'}), 500
+# --- 追加: パスワードリセットAPI ---
+@api_bp.route('/admin/reset_password', methods=['POST'])
+@roles_required(['master', 'admin'])
+def reset_user_password():
+    data = request.get_json()
+    target_user_id = data.get('user_id')
+    new_password = data.get('new_password')
+    if not target_user_id or not new_password: return jsonify({'message': 'ユーザーIDと新しいパスワードが必要です'}), 400
+    if g.current_user_role == 'admin':
+        target = query_db('SELECT company_id FROM users WHERE id = ?', [target_user_id], one=True)
+        if not target or target['company_id'] != g.current_user_company_id: return jsonify({'message': '権限がありません'}), 403
+    hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+    try:
+        execute_db('UPDATE users SET password_hash = ? WHERE id = ?', [hashed_password, target_user_id])
+        return jsonify({'message': 'パスワードを変更しました'}), 200
+    except sqlite3.Error as e: return jsonify({'message': f'Database error: {e}'}), 500
+
+# --- 追加: ユーザー一括登録API (修正済み: 企業名対応) ---
+@api_bp.route('/admin/bulk_users', methods=['POST'])
+@roles_required(['master', 'admin'])
+def bulk_register_users():
+    data = request.get_json()
+    csv_text = data.get('csv_text', '')
+    
+    success_count = 0
+    errors = []
+    
+    lines = csv_text.strip().split('\n')
+    for i, line in enumerate(lines):
+        parts = [p.strip() for p in line.split(',')]
+        
+        if len(parts) < 2:
+            errors.append(f"行 {i+1}: フォーマット不正")
+            continue
+            
+        username = parts[0]
+        password = parts[1]
+        role = parts[2] if len(parts) > 2 and parts[2] else 'staff'
+        company_name_input = parts[3] if len(parts) > 3 and parts[3] else None
+        
+        if query_db('SELECT id FROM users WHERE username = ?', [username], one=True):
+            errors.append(f"行 {i+1}: ユーザー {username} は既に存在します")
+            continue
+            
+        company_id = None
+        
+        if g.current_user_role == 'admin':
+            company_id = g.current_user_company_id
+        elif g.current_user_role == 'master':
+            if company_name_input:
+                company = query_db('SELECT id FROM companies WHERE name = ?', [company_name_input], one=True)
+                if company:
+                    company_id = company['id']
+                else:
+                    errors.append(f"行 {i+1}: 企業 '{company_name_input}' が見つかりません")
+                    continue
+            else:
+                company_id = None
+
+        hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        
+        try:
+            execute_db('INSERT INTO users (company_id, username, password_hash, role) VALUES (?, ?, ?, ?)', 
+                       [company_id, username, hashed, role])
+            success_count += 1
+        except Exception as e:
+            errors.append(f"行 {i+1}: エラー {e}")
+
+    return jsonify({
+        'message': f'{success_count} 件登録しました',
+        'errors': errors
+    })
+
+# --- 追加: 企業一括登録API ---
+@api_bp.route('/master/bulk_companies', methods=['POST'])
+@roles_required(['master'])
+def bulk_register_companies():
+    data = request.get_json()
+    csv_text = data.get('csv_text', '')
+    success_count = 0
+    errors = []
+    lines = csv_text.strip().split('\n')
+    for i, line in enumerate(lines):
+        company_name = line.strip()
+        if not company_name: continue
+        if query_db('SELECT id FROM companies WHERE name = ?', [company_name], one=True):
+            errors.append(f"行 {i+1}: 企業 {company_name} は既に存在します")
+            continue
+        try:
+            execute_db('INSERT INTO companies (name) VALUES (?)', [company_name])
+            success_count += 1
+        except Exception as e: errors.append(f"行 {i+1}: エラー {e}")
+    return jsonify({'message': f'{success_count} 社登録しました', 'errors': errors})
+
+# ★★★ 追加: ユーザーの所属企業を変更するAPI ★★★
+@api_bp.route('/admin/update_user_company', methods=['POST'])
+@roles_required(['master']) # 企業変更はマスター権限のみ許可（Adminは自社しか管理できないため）
+def update_user_company():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    company_name = data.get('company_name') # 企業名で指定 (""なら無所属)
+    
+    if not user_id:
+        return jsonify({'message': 'ユーザーIDが必要です'}), 400
+
+    company_id = None
+    if company_name:
+        company = query_db('SELECT id FROM companies WHERE name = ?', [company_name], one=True)
+        if not company:
+            return jsonify({'message': f'企業 "{company_name}" が見つかりません'}), 404
+        company_id = company['id']
+    
+    try:
+        execute_db('UPDATE users SET company_id = ? WHERE id = ?', [company_id, user_id])
+        
+        # 結果メッセージを作成
+        status = f"所属を '{company_name}' に変更しました" if company_name else "所属を解除しました"
+        return jsonify({'message': status}), 200
+        
+    except sqlite3.Error as e:
+        return jsonify({'message': f'Database error: {e}'}), 500
+    
+# ★★★ 追加: 企業一覧取得API (プルダウン用) ★★★
+@api_bp.route('/master/companies', methods=['GET'])
+@roles_required(['master'])
+def get_companies_list():
+    try:
+        companies = query_db("SELECT id, name FROM companies ORDER BY name")
+        return jsonify([dict(row) for row in companies])
+    except sqlite3.Error as e:
+        return jsonify({'message': f'Database error: {e}'}), 500

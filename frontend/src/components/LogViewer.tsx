@@ -3,10 +3,10 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-// ★ 1. log.ndjson の正しい型を定義
+// ログデータの型
 interface QuizLogEntry {
   date: string;
-  name: string; // これが「学習者」
+  name: string;
   genre: string;
   question_id: number;
   question_title: string;
@@ -20,14 +20,10 @@ interface QuizLogEntry {
 }
 
 const LogViewer: React.FC = () => {
-  // 'allLogs' に全データを保持し、'filteredLogs' に表示用データを入れる
   const [allLogs, setAllLogs] = useState<QuizLogEntry[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<QuizLogEntry[]>([]);
-  
-  // 絞り込み用の状態
-  const [learners, setLearners] = useState<string[]>([]); // ログに登場する全学習者のリスト
-  const [selectedLearner, setSelectedLearner] = useState<string>('all'); // 選択中の学習者
-
+  const [learners, setLearners] = useState<string[]>([]);
+  const [selectedLearner, setSelectedLearner] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { auth } = useAuth();
@@ -41,14 +37,13 @@ const LogViewer: React.FC = () => {
         headers: { Authorization: `Bearer ${auth?.token}` },
       });
 
-      // ★ 2. APIからのデータ型が QuizLogEntry であることを明示
       const logs: QuizLogEntry[] = response.data;
-      setAllLogs(logs); // 全ログを保存
-      setFilteredLogs(logs); // 初期状態ではすべて表示
+      setAllLogs(logs);
+      setFilteredLogs(logs);
 
-      // ★ 3. ログデータから「学習者」の一覧を作成する
       const learnerSet = new Set(logs.map(log => log.name));
-      setLearners(['all', ...Array.from(learnerSet)]); // 'all' (全員) を選択肢の先頭に追加
+      const validNames = Array.from(learnerSet).filter(n => n) as string[];
+      setLearners(['all', ...validNames]);
 
     } catch (err) {
       setError('ログの読み込みに失敗しました。');
@@ -63,27 +58,27 @@ const LogViewer: React.FC = () => {
     }
   }, [auth?.token]);
 
-  // ★ 4. 学習者ドロップダウンが変更された時の処理
   const handleLearnerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const learnerName = e.target.value;
     setSelectedLearner(learnerName);
-
     if (learnerName === 'all') {
-      setFilteredLogs(allLogs); // 全員表示
+      setFilteredLogs(allLogs);
     } else {
-      // 選択された学習者のログだけをフィルタリング
       setFilteredLogs(allLogs.filter(log => log.name === learnerName));
     }
   };
 
-  // (loading/errorの表示は変更なし)
-  if (loading) return <div><h2>読み込み中...</h2></div>;
-  if (error) return <div className="alert alert-danger">{error}</div>;
+  if (loading) return <div className="container mt-5 text-center">読み込み中...</div>;
+  if (error) return <div className="container mt-5 alert alert-danger">{error}</div>;
+
+  // ★★★ スタイルの定義 ★★★
+  // ここで列ごとの幅を調整します
+  const thStyle = { whiteSpace: 'nowrap' as const, minWidth: '100px' }; // 基本の幅
+  const wideThStyle = { minWidth: '250px' }; // 問題文など広く取りたい列
 
   return (
-    <div>
+    <div className="container-fluid mt-4" style={{ maxWidth: '1400px' }}>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        {/* ★ 5. タイトルを「解答ログ」に変更 */}
         <h1 className="h2 mb-0">クイズ解答ログ</h1>
         <div>
           <button className="btn btn-primary" onClick={fetchLogs} disabled={loading}>
@@ -95,60 +90,103 @@ const LogViewer: React.FC = () => {
         </div>
       </div>
 
-      {/* ★ 6. 学習者の絞り込みドロップダウンを追加 */}
-      <div className="form-group mb-3" style={{ maxWidth: '300px' }}>
-        <label htmlFor="learner-select" className="form-label">学習者で絞り込む:</label>
-        <select 
-          id="learner-select" 
-          className="form-select"
-          value={selectedLearner}
-          onChange={handleLearnerChange}
-        >
-          {learners.map(name => (
-            <option key={name} value={name}>
-              {name === 'all' ? 'すべての学習者' : name}
-            </option>
-          ))}
-        </select>
+      <div className="card shadow-sm mb-4">
+        <div className="card-body d-flex align-items-center py-3">
+          <label htmlFor="learner-select" className="form-label mb-0 me-3" style={{ whiteSpace: 'nowrap' }}>
+            学習者で絞り込む:
+          </label>
+          <select 
+            id="learner-select" 
+            className="form-select"
+            value={selectedLearner}
+            onChange={handleLearnerChange}
+            style={{ maxWidth: '300px' }}
+          >
+            {learners.map(name => (
+              <option key={name} value={name}>
+                {name === 'all' ? 'すべての学習者' : name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* ★ 7. テーブルの列をクイズログ用に変更 */}
-      <div className="table-responsive">
-        <table className="table table-dark table-striped table-hover table-bordered">
-          <thead className="thead-dark">
+      <div className="table-responsive shadow-sm" style={{ borderRadius: '8px' }}>
+        <table className="table table-hover table-bordered mb-0" style={{ fontSize: '0.95rem' }}>
+          <thead style={{ backgroundColor: '#f1f5f9' }}>
             <tr>
-              <th>日時</th>
-              <th>学習者 (Name)</th>
-              <th>ジャンル</th>
-              <th>結果 (Result)</th>
-              <th>問題文 (Title)</th>
-              <th>ユーザーの解答</th>
-              <th>正解</th>
-              <th>経過時間(秒)</th>
+              <th style={thStyle}>日時</th>
+              <th style={thStyle}>学習者</th>
+              <th style={thStyle}>ジャンル</th>
+              <th style={{ ...thStyle, minWidth: '80px' }}>結果</th>
+              {/* ★★★ 問題文の幅を広げる ★★★ */}
+              <th style={wideThStyle}>問題文 (Title)</th>
+              {/* ★★★ 解答欄の幅を広げる ★★★ */}
+              <th style={wideThStyle}>ユーザーの解答</th>
+              <th style={wideThStyle}>正解</th>
+              <th style={thStyle}>秒数</th>
             </tr>
           </thead>
           <tbody>
             {filteredLogs.length > 0 ? (
               filteredLogs.map((log, index) => (
                 <tr key={index}>
-                  <td>{log.date} {log.end_time}</td>
-                  <td>{log.name}</td>
-                  <td>{log.genre}</td>
-                  <td>
-                    <span className={`badge ${log.result === '正解' ? 'badge-success' : 'badge-danger'}`}>
-                      {log.result.startsWith('不正解') ? '不正解' : '正解'}
-                    </span>
+                  {/* 日時 */}
+                  <td style={{ verticalAlign: 'middle' }}>
+                    <div style={{ fontSize: '0.85rem', color: '#666' }}>{log.date}</div>
+                    <div style={{ fontWeight: 'bold' }}>{log.end_time}</div>
                   </td>
-                  <td>{log.question_title?.substring(0, 30)}...</td>
-                  <td style={{ fontSize: '0.9rem' }}>{log.user_choice?.join(', ')}</td>
-                  <td style={{ fontSize: '0.9rem' }}>{log.correct_answers?.join(', ')}</td>
-                  <td>{log.elapsed_time?.toFixed(2) || 'N/A'}</td>
+                  
+                  {/* 学習者 */}
+                  <td style={{ verticalAlign: 'middle', fontWeight: 'bold' }}>{log.name}</td>
+                  
+                  {/* ジャンル */}
+                  <td style={{ verticalAlign: 'middle' }}>
+                    <span className="badge bg-light text-dark border">{log.genre}</span>
+                  </td>
+                  
+                  {/* 結果 */}
+                  <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>
+                    {log.result.startsWith('不正解') ? (
+                      <span className="badge bg-danger text-white px-3 py-2">不正解</span>
+                    ) : (
+                      <span className="badge bg-success text-white px-3 py-2">正解</span>
+                    )}
+                  </td>
+
+                  {/* 問題文 (行間を空けて読みやすく) */}
+                  <td style={{ verticalAlign: 'middle', lineHeight: '1.6' }}>
+                    {log.question_title}
+                  </td>
+
+                  {/* ユーザー解答 */}
+                  <td style={{ verticalAlign: 'middle', color: log.result.startsWith('不正解') ? '#dc3545' : 'inherit' }}>
+                    {log.user_choice?.map((choice, i) => (
+                      <div key={i} style={{ padding: '4px 0', borderBottom: '1px dashed #eee' }}>
+                        {choice}
+                      </div>
+                    ))}
+                  </td>
+
+                  {/* 正解 */}
+                  <td style={{ verticalAlign: 'middle', color: '#28a745', fontWeight: 'bold' }}>
+                    {log.correct_answers?.map((ans, i) => (
+                      <div key={i} style={{ padding: '4px 0', borderBottom: '1px dashed #eee' }}>
+                        {ans}
+                      </div>
+                    ))}
+                  </td>
+
+                  {/* 秒数 */}
+                  <td style={{ verticalAlign: 'middle', textAlign: 'right' }}>
+                    {log.elapsed_time ? `${log.elapsed_time.toFixed(1)}秒` : '-'}
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={8} className="text-center">
-                  ログエントリがありません。
+                <td colSpan={8} className="text-center py-5 text-muted">
+                  ログデータがありません。
                 </td>
               </tr>
             )}

@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Radar, Scatter } from 'react-chartjs-2';
 
-// ログデータの型
 interface QuizLogEntry {
   date: string;
   genre: string;
@@ -40,65 +39,51 @@ const MyAnalysis: React.FC = () => {
   const total = logs.length;
   const correctLogs = logs.filter(l => l.result === '正解');
   const wrongLogs = logs.filter(l => l.result !== '正解');
-  
-  // 正解率
   const accuracy = total > 0 ? (correctLogs.length / total) * 100 : 0;
 
-  // 平均回答時間の計算 (秒)
   const avgTimeCorrect = correctLogs.length > 0 
     ? correctLogs.reduce((sum, l) => sum + (l.elapsed_time || 0), 0) / correctLogs.length 
     : 0;
-    
   const avgTimeWrong = wrongLogs.length > 0
     ? wrongLogs.reduce((sum, l) => sum + (l.elapsed_time || 0), 0) / wrongLogs.length
     : 0;
 
-  // ★★★ タイプ診断 & 根拠生成ロジック ★★★
+  // --- 診断ロジック ---
   let persona = "🔰 初心者チャレンジャー";
   let description = "まだデータが足りません。もっと問題を解いてみましょう！";
   let color = "text-secondary";
-  let reasons: string[] = []; // ★追加: 根拠リスト
+  let reasons: string[] = [];
 
   if (total <= 5) {
     reasons.push(`現在の回答数: ${total}問`);
     reasons.push(`あと ${6 - total}問 解くと、AIがあなたの傾向を分析します。`);
   } else {
     if (accuracy >= 90) {
-      // --- 簿記マスター ---
-      persona = "👑 簿記マスター";
+      persona = "👑 マスター";
       description = "素晴らしい知識量です！この調子で満点を目指しましょう。";
       color = "text-warning";
       reasons.push(`正解率が ${accuracy.toFixed(1)}% と非常に高い水準です。`);
       reasons.push(`合計 ${total}問中、${correctLogs.length}問 に正解しています。`);
-      
     } else if (avgTimeWrong < 3.0 && avgTimeWrong < avgTimeCorrect / 1.5) {
-      // --- 直感スピードスター ---
       persona = "⚡️ 直感スピードスター";
-      description = "回答がとても速いですが、不正解の時は少し焦っているかも？ わからない問題も「あと5秒」考えてから答えると正解率が上がります！";
+      description = "回答がとても速いですが、不正解の時は少し焦っているかも？";
       color = "text-danger";
       reasons.push(`不正解の問題を 平均 ${avgTimeWrong.toFixed(1)}秒 という速さで回答しています。`);
-      reasons.push(`正解した時（平均 ${avgTimeCorrect.toFixed(1)}秒）と比べて、考える時間が極端に短くなっています。`);
-      reasons.push(`「わからない」と思った瞬間に諦めてしまっている可能性があります。`);
-
+      reasons.push(`正解した時と比較して、考える時間が極端に短くなっています。`);
     } else if (avgTimeCorrect > 15.0) {
-      // --- じっくり思考派 ---
       persona = "🐢 じっくり思考派";
-      description = "慎重に考えて答えています。正解率は高いので、自信を持って少しスピードアップを意識してみましょう。";
+      description = "慎重に考えて答えています。正解率は高いので、スピードアップを意識してみましょう。";
       color = "text-info";
       reasons.push(`正解するために 平均 ${avgTimeCorrect.toFixed(1)}秒 じっくり時間をかけています。`);
-      reasons.push(`慎重さは武器ですが、試験本番の時間配分を意識するフェーズに入っています。`);
-
     } else {
-      // --- バランス型 ---
       persona = "⚖️ バランス型学習者";
-      description = "安定したペースで学習できています。苦手ジャンルを重点的に復習するとさらに伸びます！";
+      description = "安定したペースで学習できています。";
       color = "text-success";
       reasons.push(`正解率 ${accuracy.toFixed(1)}% で、安定して学習が進んでいます。`);
-      reasons.push(`回答スピードも極端な偏りがなく、理想的です。`);
     }
   }
 
-  // 散布図データ
+  // --- グラフ設定 (ダークモード解除) ---
   const scatterData = {
     datasets: [
       {
@@ -114,7 +99,23 @@ const MyAnalysis: React.FC = () => {
     ],
   };
 
-  // レーダーチャートデータ
+  const scatterOptions = {
+    scales: {
+      y: { 
+        title: { display: true, text: '秒数', color: '#666' }, // ★文字色変更
+        ticks: { color: '#666' }, // ★目盛り文字色変更
+        grid: { color: '#eee' }   // ★グリッド線変更
+      },
+      x: {
+        ticks: { color: '#666' },
+        grid: { color: '#eee' }
+      }
+    },
+    plugins: {
+      legend: { labels: { color: '#333' } } // ★凡例文字色
+    }
+  };
+
   const genreStats: Record<string, { total: number; correct: number }> = {};
   logs.forEach(log => {
     if (!genreStats[log.genre]) genreStats[log.genre] = { total: 0, correct: 0 };
@@ -133,6 +134,21 @@ const MyAnalysis: React.FC = () => {
     }],
   };
 
+  const radarOptions = {
+    scales: {
+      r: {
+        min: 0, max: 100,
+        ticks: { stepSize: 20, backdropColor: 'transparent', color: '#666' }, // ★目盛り文字
+        pointLabels: { color: '#333', font: { size: 12, weight: 'bold' } }, // ★ラベル文字(重要)
+        grid: { color: '#ddd' }, // ★グリッド線
+        angleLines: { color: '#eee' } // ★放射線
+      },
+    },
+    plugins: {
+      legend: { display: false },
+    }
+  };
+
   return (
     <div style={{ width: '90%', margin: '0 auto', marginTop: '2rem', paddingBottom: '4rem' }}>
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -141,7 +157,7 @@ const MyAnalysis: React.FC = () => {
       </div>
 
       {/* 診断結果カード */}
-      <div className="card shadow mb-5">
+      <div className="card shadow-sm mb-5">
         <div className="card-body p-5">
           <div className="text-center">
             <h2 className="text-muted mb-3">あなたの学習タイプは...</h2>
@@ -149,25 +165,27 @@ const MyAnalysis: React.FC = () => {
             <p className="lead mb-4">{description}</p>
           </div>
           
-          <div className="card bg-light border-0 p-4 mt-4" style={{ backgroundColor: '#2a2a2a' }}>
-            <h4 className="mb-3 text-center">🔍 診断の根拠データ</h4>
+          {/* ★背景色を白系に変更、文字色指定を削除★ */}
+          <div className="card border-0 p-4 mt-4" style={{ backgroundColor: '#f8f9fa' }}>
+            <h4 className="mb-3 text-center text-dark">🔍 診断の根拠データ</h4>
             <ul className="list-group list-group-flush" style={{ backgroundColor: 'transparent' }}>
               {reasons.map((reason, index) => (
-                <li key={index} className="list-group-item" style={{ backgroundColor: 'transparent', color: '#e4e6eb', borderBottom: '1px solid #444' }}>
+                // ★文字色指定を削除、ボーダー色を薄く★
+                <li key={index} className="list-group-item" style={{ backgroundColor: 'transparent', borderBottom: '1px solid #ddd' }}>
                   ✅ {reason}
                 </li>
               ))}
             </ul>
           </div>
 
-          <hr className="my-4" style={{ borderColor: '#555' }} />
+          <hr className="my-4" />
           
           <div className="row text-center">
-            <div className="col-4 border-end border-secondary">
+            <div className="col-4 border-end">
               <small className="text-muted">総回答数</small>
               <h3>{total} 問</h3>
             </div>
-            <div className="col-4 border-end border-secondary">
+            <div className="col-4 border-end">
               <small className="text-muted">正解時の平均時間</small>
               <h3 className="text-success">{avgTimeCorrect.toFixed(1)} 秒</h3>
             </div>
@@ -181,23 +199,19 @@ const MyAnalysis: React.FC = () => {
 
       <div className="row">
         <div className="col-md-6 mb-4">
-          <div className="card shadow h-100">
+          <div className="card shadow-sm h-100">
             <div className="card-body">
-              <h5 className="card-title">思考時間の推移 (散布図)</h5>
-              <p className="text-muted small">横軸:回答順 / 縦軸:秒数</p>
-              <Scatter 
-                data={scatterData} 
-                options={{ scales: { y: { title: { display: true, text: '秒数' } } } }} 
-              />
+              <h5 className="card-title">思考時間の推移</h5>
+              <Scatter data={scatterData} options={scatterOptions} />
             </div>
           </div>
         </div>
         <div className="col-md-6 mb-4">
-          <div className="card shadow h-100">
+          <div className="card shadow-sm h-100">
             <div className="card-body">
               <h5 className="card-title">得意・不得意バランス</h5>
               {Object.keys(genreStats).length > 0 ? (
-                <Radar data={radarData} options={{ scales: { r: { min: 0, max: 100 } } }} />
+                <Radar data={radarData} options={radarOptions as any} />
               ) : <p>データ不足</p>}
             </div>
           </div>

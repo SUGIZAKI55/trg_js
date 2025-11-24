@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
-import confetti from 'canvas-confetti'; // ★追加: 紙吹雪ライブラリ
+import confetti from 'canvas-confetti';
 
 interface Question { id: number; title: string; choices: string; explanation: string; }
 interface AnswerResult { is_correct: boolean; correct_answer: string[]; explanation: string; }
@@ -19,8 +19,6 @@ const QuizQuestion: React.FC = () => {
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [quizResults, setQuizResults] = useState<boolean[]>([]);
   const [startTime, setStartTime] = useState<Date | null>(null);
-  
-  // ★追加: ヨイショ用メッセージ
   const [praiseMessage, setPraiseMessage] = useState('');
 
   const currentQuestion = questions[currentIndex];
@@ -30,40 +28,15 @@ const QuizQuestion: React.FC = () => {
     setStartTime(new Date());
   }, [currentIndex]);
 
-  // ★追加: ランダムでベタ褒めする関数
   const getPraiseMessage = () => {
-    const messages = [
-      "天才ですか！？😲",
-      "その調子！無敵ですね！🚀",
-      "神レベルの正解！✨",
-      "素晴らしすぎます！👏",
-      "完璧！言うことなし！💯",
-      "今日のあなたは輝いてます！🌟",
-      "知能指数爆上がり中！🧠"
-    ];
+    const messages = ["天才ですか！？😲", "その調子！🚀", "神レベル！✨", "完璧！💯", "素晴らしい！👏"];
     return messages[Math.floor(Math.random() * messages.length)];
   };
 
-  // ★追加: 紙吹雪を派手に飛ばす関数
   const triggerConfetti = () => {
-    const duration = 3 * 1000;
-    const animationEnd = Date.now() + duration;
-    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
-
-    const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-    const interval: any = setInterval(function() {
-      const timeLeft = animationEnd - Date.now();
-
-      if (timeLeft <= 0) {
-        return clearInterval(interval);
-      }
-
-      const particleCount = 50 * (timeLeft / duration);
-      // 左右から発射！
-      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
-      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
-    }, 250);
+    // 紙吹雪の色もKoinoboriカラーに合わせる
+    const colors = ['#00ADEF', '#004D99', '#FFCF33']; 
+    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: colors });
   };
 
   const handleSubmitAnswer = async () => {
@@ -88,12 +61,11 @@ const QuizQuestion: React.FC = () => {
       setResult(answerResult);
       setQuizResults([...quizResults, answerResult.is_correct]);
 
-      // ★★★ ここで演出を分岐 ★★★
       if (answerResult.is_correct) {
-        setPraiseMessage(getPraiseMessage()); // 褒め言葉をセット
-        triggerConfetti(); // 紙吹雪発射！
+        setPraiseMessage(getPraiseMessage());
+        triggerConfetti();
       } else {
-        setPraiseMessage("惜しい！次は絶対いけます！🔥"); // 不正解時の励まし
+        setPraiseMessage("惜しい！次は絶対いけます！🔥");
       }
 
     } catch (err: any) {
@@ -118,16 +90,16 @@ const QuizQuestion: React.FC = () => {
 
   return (
     <div className="container mt-5" style={{ maxWidth: '800px' }}>
-      <div className="card shadow">
+      <div className="card shadow-lg">
         <div className="card-header">
-          <h5>問題 {currentIndex + 1} / {questions.length}</h5>
+          <span className="badge bg-primary" style={{fontSize: '1rem'}}>問題 {currentIndex + 1} / {questions.length}</span>
         </div>
         <div className="card-body p-4">
-          <h4 className="card-title mb-4" style={{ lineHeight: '1.6' }}>{currentQuestion.title}</h4>
+          <h4 className="card-title mb-5" style={{ lineHeight: '1.8', fontWeight: 'bold' }}>{currentQuestion.title}</h4>
           
           <div className="form-group">
             {options.map((opt) => (
-              <div key={opt} className="form-check mb-3 p-3 border rounded" style={{ backgroundColor: '#2a2a2a' }}>
+              <div key={opt} className="form-check">
                 <input
                   type="checkbox"
                   className="form-check-input"
@@ -136,63 +108,78 @@ const QuizQuestion: React.FC = () => {
                   checked={selectedAnswers.includes(opt)}
                   onChange={() => handleCheckboxChange(opt)}
                   disabled={!!result}
-                  style={{ transform: 'scale(1.3)', marginLeft: '0.5rem' }}
                 />
-                <label 
-                  className="form-check-label w-100" 
-                  htmlFor={opt} 
-                  style={{ whiteSpace: 'normal', wordBreak: 'break-word', paddingLeft: '1rem', cursor: 'pointer', fontSize: '1.1rem' }}
-                >
+                <label className="form-check-label" htmlFor={opt}>
                   {opt}
                 </label>
               </div>
             ))}
           </div>
           
-          <button 
-            className="btn btn-primary btn-lg w-100 mt-3" 
-            onClick={handleSubmitAnswer} 
-            disabled={!!result}
-          >
-            解答する
-          </button>
+          <div className="text-center mt-4">
+            <button 
+              className="btn btn-primary btn-lg w-100" 
+              onClick={handleSubmitAnswer} 
+              disabled={!!result}
+              style={{maxWidth: '300px', padding: '15px', fontSize: '1.2rem'}}
+            >
+              解答する
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* --- 結果モーダル (ヨイショ仕様) --- */}
+      {/* --- 結果モーダル (白ベースで見やすく修正) --- */}
       {result && (
-        <div className="modal" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)', animation: 'fadeIn 0.3s' }}>
+        <div className="modal" style={{ display: 'block', backgroundColor: 'rgba(0,50,100,0.4)', backdropFilter: 'blur(4px)', animation: 'fadeIn 0.3s' }}>
           <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg" style={{ border: result.is_correct ? '4px solid #ffd700' : '1px solid #444' }}>
+            <div className="modal-content" style={{ 
+                border: 'none', 
+                borderRadius: '24px', 
+                overflow: 'hidden',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
+            }}>
               
-              <div className={`modal-header ${result.is_correct ? 'bg-warning text-dark' : 'bg-danger text-white'}`}>
-                {/* 巨大な判定テキスト */}
-                <h2 className="modal-title w-100 text-center font-weight-bold">
-                  {result.is_correct ? '🎉 正　解！ 🎉' : '😢 不正解...'}
-                </h2>
+              {/* ヘッダー: 正解なら青グラデ、不正解ならグレー */}
+              <div className="modal-header text-center justify-content-center" 
+                   style={{
+                     background: result.is_correct 
+                       ? 'linear-gradient(135deg, #00ADEF 0%, #004D99 100%)' 
+                       : '#f0f0f0',
+                     padding: '30px'
+                   }}>
+                <h1 className="modal-title m-0" style={{ 
+                    fontWeight: '900', 
+                    color: result.is_correct ? '#fff' : '#666',
+                    fontSize: '2.5rem',
+                    textShadow: result.is_correct ? '0 2px 10px rgba(0,0,0,0.2)' : 'none'
+                }}>
+                  {result.is_correct ? '⭕️ 正　解！' : '❌ 不正解...'}
+                </h1>
               </div>
               
-              <div className="modal-body text-center p-4">
-                {/* ヨイショメッセージ */}
-                <h3 className="mb-4" style={{ color: result.is_correct ? '#ffeb3b' : '#ff9999', fontWeight: 'bold' }}>
+              {/* ボディ: 白背景で文字をくっきり */}
+              <div className="modal-body text-center p-5" style={{backgroundColor: '#fff', color: '#333'}}>
+                <h3 className="mb-4" style={{ color: result.is_correct ? '#00ADEF' : '#ff6b6b', fontWeight: 'bold' }}>
                   {praiseMessage}
                 </h3>
 
-                <div className="text-left bg-dark p-3 rounded">
-                  <p className="mb-1 text-muted">正解:</p>
-                  <h5 className="text-success mb-3">{result.correct_answer.join(', ')}</h5>
+                {/* 解説ボックス: 薄い青背景で見やすく */}
+                <div className="text-left p-4 rounded" style={{backgroundColor: '#f0f9ff', border: '1px solid #dcebf7', textAlign: 'left'}}>
+                  <p className="mb-2 text-muted small" style={{fontWeight: 'bold', textTransform: 'uppercase'}}>正解</p>
+                  <h4 className="mb-4" style={{color: '#004D99', fontWeight: 'bold'}}>{result.correct_answer.join(', ')}</h4>
                   
                   {result.explanation && (
                     <>
-                      <p className="mb-1 text-muted">解説:</p>
-                      <p>{result.explanation}</p>
+                      <p className="mb-2 text-muted small" style={{fontWeight: 'bold', textTransform: 'uppercase'}}>解説</p>
+                      <p style={{lineHeight: '1.8', color: '#444', fontSize: '1rem'}}>{result.explanation}</p>
                     </>
                   )}
                 </div>
               </div>
               
-              <div className="modal-footer justify-content-center">
-                <button className="btn btn-light btn-lg px-5 font-weight-bold" onClick={handleNext}>
+              <div className="modal-footer justify-content-center p-4" style={{backgroundColor: '#fff', borderTop: 'none'}}>
+                <button className="btn btn-primary btn-lg px-5" onClick={handleNext} style={{borderRadius: '50px', minWidth: '200px'}}>
                   {currentIndex < questions.length - 1 ? '次へ進む 👉' : '結果を見る 🏆'}
                 </button>
               </div>
