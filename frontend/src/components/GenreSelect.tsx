@@ -7,98 +7,57 @@ const GenreSelect: React.FC = () => {
   const [genres, setGenres] = useState<string[]>([]);
   const [selectedGenre, setSelectedGenre] = useState('');
   const [questionCount, setQuestionCount] = useState(10);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const { auth } = useAuth();
   const navigate = useNavigate();
 
-  // 1. ジャンル一覧をAPIから取得
   useEffect(() => {
     const fetchGenres = async () => {
       try {
-        const res = await axios.get('/api/quiz/genres', {
-          headers: { Authorization: `Bearer ${auth?.token}` },
-        });
+        const res = await axios.get('/api/quiz/genres', { headers: { Authorization: `Bearer ${auth?.token}` } });
         setGenres(res.data);
-        if (res.data.length > 0) {
-          setSelectedGenre(res.data[0]); // 最初のジャンルをデフォルト選択
-        }
-      } catch (err) {
-        setError('ジャンルの読み込みに失敗しました。');
-      } finally {
-        setLoading(false);
-      }
+        if (res.data.length > 0) setSelectedGenre(res.data[0]);
+      } catch {}
     };
-    fetchGenres();
+    if (auth?.token) fetchGenres();
   }, [auth?.token]);
 
-  // 2. クイズ開始ボタンの処理
-  const handleStartQuiz = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const handleStart = async () => {
     try {
-      // 選択したジャンルと問題数でクイズデータを取得
       const res = await axios.get('/api/quiz/start', {
         params: { genre: selectedGenre, count: questionCount },
         headers: { Authorization: `Bearer ${auth?.token}` },
       });
-      
-      const questions = res.data;
-      if (!questions || questions.length === 0) {
-        setError('このジャンルの問題が見つかりませんでした。');
-        return;
-      }
-      
-      // クイズ画面に「問題データ」と「セッションID」を渡して遷移
-      const session_id = `${Date.now()}-${auth?.username}`;
-      navigate('/question', { state: { questions, session_id } });
-
-    } catch (err) {
-      setError('クイズの開始に失敗しました。');
-    }
+      navigate('/question', { state: { questions: res.data, session_id: Date.now().toString() } });
+    } catch { alert("エラー"); }
   };
 
-  if (loading) return <div className="container mt-5">読み込み中...</div>;
-
   return (
-    <div className="container mt-5" style={{ maxWidth: '600px' }}>
-      <h1 className="text-center">クイズ設定</h1>
-      {error && <div className="alert alert-danger">{error}</div>}
-      <form onSubmit={handleStartQuiz}>
-        <div className="form-group">
-          <label htmlFor="genre-select">ジャンルを選択:</label>
-          <select
-            id="genre-select"
-            className="form-control"
-            value={selectedGenre}
-            onChange={(e) => setSelectedGenre(e.target.value)}
-          >
-            {genres.map((g) => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
+    <div className="container-narrow">
+      <div className="text-center mb-5">
+        <h1 className="page-title">クイズ設定</h1>
+        <p className="page-subtitle">ジャンルと問題数を選択してください</p>
+      </div>
+      <div className="card">
+        <div className="card-body">
+          <div className="form-group">
+            <label className="form-label">ジャンル</label>
+            <select className="form-select" value={selectedGenre} onChange={(e) => setSelectedGenre(e.target.value)}>
+              {genres.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">問題数</label>
+            <select className="form-select" value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value))}>
+              {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n}問</option>)}
+            </select>
+          </div>
+          <div className="d-flex-center" style={{ gap: '10px', marginTop: '30px' }}>
+            <button className="btn btn-secondary w-100" onClick={() => navigate('/dashboard')}>戻る</button>
+            <button className="btn btn-primary w-100" onClick={handleStart}>開始</button>
+          </div>
         </div>
-        <div className="form-group">
-          <label htmlFor="question-count">問題数:</label>
-          <input
-            type="number"
-            id="question-count"
-            className="form-control"
-            value={questionCount}
-            onChange={(e) => setQuestionCount(Number(e.target.value))}
-            min="1"
-            max="50"
-          />
-        </div>
-        <button type="submit" className="btn btn-primary btn-block">
-          クイズ開始
-        </button>
-        <button type="button" className="btn btn-secondary btn-block mt-2" onClick={() => navigate('/dashboard')}>
-          戻る
-        </button>
-      </form>
+      </div>
     </div>
   );
 };
-
 export default GenreSelect;

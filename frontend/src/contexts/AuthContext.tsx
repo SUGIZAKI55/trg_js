@@ -1,66 +1,67 @@
-import { createContext, useState, useContext, useEffect } from 'react';
-// エラーの原因だったReactNodeを type-only import に分離します
-import type { ReactNode } from 'react';
+// ★ ReactNode を追加しました
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-// 認証データの型定義
-interface Auth {
-  token: string;
-  username: string;
-  role: string;
+// 認証情報の型定義
+interface AuthState {
+  token: string | null;
+  username: string | null;
+  role: string | null; // 'master' | 'admin' | 'staff' など
 }
 
-// Contextが提供する値の型定義
+// Contextの型定義
 interface AuthContextType {
-  auth: Auth | null;
-  login: (authData: Auth) => void;
+  auth: AuthState | null;
+  login: (token: string, username: string, role: string) => void;
   logout: () => void;
+  loading: boolean;
 }
 
-// Contextの作成
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Contextを提供するためのProviderコンポーネント
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [auth, setAuth] = useState<Auth | null>(null);
+// ★ children の型定義に ReactNode を使用
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [auth, setAuth] = useState<AuthState | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // --- ログイン状態を永続化させる処理 ---
-  // コンポーネントが最初に読み込まれた時、localStorageから認証情報を復元する
   useEffect(() => {
-    const storedAuth = localStorage.getItem('auth');
-    if (storedAuth) {
-      try {
-        setAuth(JSON.parse(storedAuth));
-      } catch (e) {
-        console.error("Failed to parse auth data from localStorage", e);
-        localStorage.removeItem('auth');
-      }
+    // アプリ起動時にローカルストレージからログイン情報を復元
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+    const role = localStorage.getItem('role');
+
+    if (token && username && role) {
+      setAuth({ token, username, role });
     }
+    setLoading(false);
   }, []);
 
-  // ログイン処理
-  const login = (authData: Auth) => {
-    setAuth(authData);
-    // ログイン情報をlocalStorageに保存
-    localStorage.setItem('auth', JSON.stringify(authData));
+  // ログイン処理: 3つの情報を受け取って保存
+  const login = (token: string, username: string, role: string) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('username', username);
+    localStorage.setItem('role', role);
+    setAuth({ token, username, role });
   };
 
-  // ログアウト処理
+  // ログアウト処理: 情報を全て削除
   const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    localStorage.removeItem('role');
     setAuth(null);
-    // localStorageからログイン情報を削除
-    localStorage.removeItem('auth');
   };
 
-  const value = { auth, login, logout };
+  return (
+    <AuthContext.Provider value={{ auth, login, logout, loading }}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
+};
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-// Contextを簡単に利用するためのカスタムフック
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};

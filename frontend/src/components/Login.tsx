@@ -1,79 +1,60 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-// ★★★ 1. `Link` を react-router-dom からインポートします ★★★
-import { useNavigate, Link } from 'react-router-dom';
-
-// 認証データの型
-interface AuthData {
-  token: string;
-  username: string;
-  role: string;
-}
+import { useNavigate } from 'react-router-dom';
 
 const Login: React.FC = () => {
-  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const { login } = useAuth();
   const navigate = useNavigate();
+  const [error, setError] = useState('');
 
-  // ★★★ 2. ログインに成功したらダッシュボードに飛ばすようにします ★★★
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError('');
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
-      const response = await axios.post<AuthData>('/api/auth/login', {
-        username,
-        password,
-      });
-      login(response.data); // Contextに認証情報をセット
-      
-      // ログイン成功後、強制的にダッシュボードへ移動
-      // (App.tsxのリダイレクトがうまく機能しない場合のため)
-      navigate('/dashboard'); 
-
-    } catch (err: any) {
-      if (axios.isAxiosError(err) && err.response) {
-        setError(err.response.data.message || 'ログインに失敗しました。');
-      } else {
-        setError('予期せぬエラーが発生しました。');
-      }
+      const res = await axios.post('/api/auth/login', { username, password });
+      login(res.data.token, res.data.username, res.data.role);
+      navigate(res.data.role === 'admin' || res.data.role === 'master' ? '/admin' : '/dashboard');
+    } catch (err) {
+      setError('ログインに失敗しました。');
     }
   };
 
   return (
-    <div className="container" style={{ maxWidth: '500px' }}>
-      <h2 className="text-center mb-4">ログイン</h2>
-      {error && <div className="alert alert-danger">{error}</div>}
-      
-      {/* ★★★ 3. 登録成功時のメッセージを表示するロジック (おまけ) ★★★ */}
-      {/* (この機能は現在 `Maps` の state を使っていないのでコメントアウト)
-        {location.state?.message && (
-          <div className="alert alert-success">{location.state.message}</div>
-        )} 
-      */}
+    <div className="container-narrow">
+      <div className="text-center mb-5">
+        <h1 className="page-title">Sugi-Tech Quiz</h1>
+        <p className="page-subtitle">社員研修プラットフォームへようこそ</p>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="username">ユーザー名:</label>
-          <input type="text" className="form-control" id="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+      <div className="card">
+        <div className="card-body">
+          {error && <div className="alert alert-error">{error}</div>}
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label className="form-label">ユーザー名</label>
+              <input 
+                className="form-control" 
+                type="text" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                placeholder="ユーザー名を入力"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">パスワード</label>
+              <input 
+                className="form-control" 
+                type="password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                placeholder="パスワードを入力"
+              />
+            </div>
+            <button className="btn btn-primary w-100 mb-3" type="submit">ログイン</button>
+          </form>
         </div>
-        <div className="form-group">
-          <label htmlFor="password">パスワード:</label>
-          <input type="password" className="form-control" id="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </div>
-        <button type="submit" className="btn btn-primary btn-block">
-          ログイン
-        </button>
-      </form>
-      
-      {/* ★★★ 4. 新規登録画面へのリンクをここに追加します ★★★ */}
-      <div className="text-center mt-3">
-        <p>
-          アカウントをお持ちではありませんか？ <Link to="/signup">新規登録</Link>
-        </p>
       </div>
     </div>
   );
