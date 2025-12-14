@@ -11,13 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LearningLog = void 0;
 const typeorm_1 = require("typeorm");
+const user_entity_1 = require("./user.entity");
+const question_entity_1 = require("./question.entity");
 let LearningLog = class LearningLog {
-    id;
-    user_id;
-    course_id;
-    score;
-    is_passed;
-    finished_at;
 };
 exports.LearningLog = LearningLog;
 __decorate([
@@ -25,25 +21,23 @@ __decorate([
     __metadata("design:type", Number)
 ], LearningLog.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", Number)
-], LearningLog.prototype, "user_id", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", Number)
-], LearningLog.prototype, "course_id", void 0);
-__decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", Number)
-], LearningLog.prototype, "score", void 0);
+    (0, typeorm_1.CreateDateColumn)(),
+    __metadata("design:type", Date)
+], LearningLog.prototype, "learned_at", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", Boolean)
-], LearningLog.prototype, "is_passed", void 0);
+], LearningLog.prototype, "is_correct", void 0);
 __decorate([
-    (0, typeorm_1.CreateDateColumn)(),
-    __metadata("design:type", Date)
-], LearningLog.prototype, "finished_at", void 0);
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, (user) => user.learningLogs),
+    (0, typeorm_1.JoinColumn)({ name: 'user_id' }),
+    __metadata("design:type", user_entity_1.User)
+], LearningLog.prototype, "user", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => question_entity_1.Question),
+    (0, typeorm_1.JoinColumn)({ name: 'question_id' }),
+    __metadata("design:type", question_entity_1.Question)
+], LearningLog.prototype, "question", void 0);
 exports.LearningLog = LearningLog = __decorate([
     (0, typeorm_1.Entity)()
 ], LearningLog);

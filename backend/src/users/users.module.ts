@@ -6,9 +6,9 @@ import { User } from '../entities/user.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User])],
-  controllers: [UsersController],
   providers: [UsersService],
-  exports: [UsersService], // AuthModuleで使うためエクスポート
+  controllers: [UsersController],
+  // ★重要: これがないと他のモジュール(Auth)から使えません！
+  exports: [UsersService], 
 })
 export class UsersModule {}
-

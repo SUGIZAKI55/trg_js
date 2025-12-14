@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PassportStrategy } from '@nestjs/passport';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -8,12 +8,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: 'SECRET_KEY_DEV',
+      secretOrKey: 'SECRET_KEY', // auth.module.tsと同じ鍵にする
     });
   }
 
   async validate(payload: any) {
-    // req.user に入るデータ
-    return { userId: payload.sub, username: payload.username, role: payload.role, companyId: payload.companyId };
+    // ここで返した値が req.user になります
+    return { userId: payload.sub, username: payload.username, role: payload.role };
   }
 }

@@ -48,7 +48,7 @@ async function bootstrap() {
   // Master User
   const masterUser = new User();
   masterUser.username = "master";
-  masterUser.password_hash = hash;
+  masterUser.password = hash;
   masterUser.role = "MASTER";
   masterUser.company = masterComp;
   await userRepo.save(masterUser);
@@ -56,7 +56,7 @@ async function bootstrap() {
   // Super Admin (企業管理者)
   const superAdmin = new User();
   superAdmin.username = "superadmin_a";
-  superAdmin.password_hash = hash;
+  superAdmin.password = hash;
   superAdmin.role = "SUPER_ADMIN";
   superAdmin.company = clientA;
   await userRepo.save(superAdmin);
@@ -64,7 +64,7 @@ async function bootstrap() {
   // Admin (部長)
   const deptAdmin = new User();
   deptAdmin.username = "manager_sales";
-  deptAdmin.password_hash = hash;
+  deptAdmin.password = hash;
   deptAdmin.role = "ADMIN";
   deptAdmin.company = clientA;
   deptAdmin.department = deptSales;
@@ -73,7 +73,7 @@ async function bootstrap() {
   // User (一般社員 - 課所属)
   const staff = new User();
   staff.username = "staff_01";
-  staff.password_hash = hash;
+  staff.password = hash;
   staff.role = "USER";
   staff.company = clientA;
   staff.department = deptSales;

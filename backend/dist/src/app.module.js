@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const auth_module_1 = require("./auth/auth.module");
 const users_module_1 = require("./users/users.module");
+const companies_module_1 = require("./companies/companies.module");
 const user_entity_1 = require("./entities/user.entity");
 const company_entity_1 = require("./entities/company.entity");
 const department_entity_1 = require("./entities/department.entity");
@@ -32,6 +33,7 @@ exports.AppModule = AppModule = __decorate([
             }),
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
+            companies_module_1.CompaniesModule,
         ],
     })
 ], AppModule);

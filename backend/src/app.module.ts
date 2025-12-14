@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module'; // ★追加
+import { UsersModule } from './users/users.module';
+import { CompaniesModule } from './companies/companies.module'; // ★追加
 
 import { User } from './entities/user.entity';
 import { Company } from './entities/company.entity';
@@ -20,7 +21,8 @@ import { LearningLog } from './entities/learning-log.entity';
       synchronize: true,
     }),
     AuthModule,
-    UsersModule, // ★ここに追加
+    UsersModule,
+    CompaniesModule, // ★ここに追加
   ],
 })
 export class AppModule {}

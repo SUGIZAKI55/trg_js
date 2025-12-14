@@ -3,13 +3,17 @@ export declare class AuthController {
     private authService;
     constructor(authService: AuthService);
     login(req: any): Promise<{
-        token: string;
-        username: string;
-        role: string;
+        access_token: string;
+        user: {
+            username: any;
+            sub: any;
+            role: any;
+        };
     }>;
-    impersonate(body: any): Promise<{
-        token: string;
-        username: string;
-        role: string;
+    getProfile(req: any): any;
+    impersonate(body: {
+        userId: number;
+    }): Promise<{
+        access_token: string;
     }>;
 }

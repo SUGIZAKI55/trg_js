@@ -4,10 +4,9 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // フロントエンドからのアクセスを許可
-  app.enableCors();
+  // ★これがないとReactからデータが見えません！
+  app.enableCors(); 
   
   await app.listen(3000);
-  console.log('Server running on http://localhost:3000');
 }
 bootstrap();

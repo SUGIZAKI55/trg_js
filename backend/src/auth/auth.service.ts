@@ -1,53 +1,49 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from '../entities/user.entity';
+import { Injectable } from '@nestjs/common';
+import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User) private usersRepository: Repository<User>,
-    private jwtService: JwtService,
+    private usersService: UsersService,
+    private jwtService: JwtService
   ) {}
 
-  async login(username: string, pass: string) {
-    const user = await this.usersRepository.findOne({ where: { username } });
-    if (!user) throw new UnauthorizedException('User not found');
-
-    const isMatch = await bcrypt.compare(pass, user.password_hash);
-    if (!isMatch) throw new UnauthorizedException('Invalid password');
-
-    const payload = { 
-      sub: user.id, 
-      username: user.username, 
-      role: user.role,
-      companyId: user.company_id
-    };
-    
-    return {
-      token: this.jwtService.sign(payload),
-      username: user.username,
-      role: user.role
-    };
+  async validateUser(username: string, pass: string): Promise<any> {
+    const user = await this.usersService.findOneByUsername(username);
+    if (user && (await bcrypt.compare(pass, user.password))) {
+      const { password, ...result } = user;
+      return result;
+    }
+    return null;
   }
 
-  // なりすましログイン (Master Only)
-  async impersonate(targetUserId: number) {
-    const user = await this.usersRepository.findOne({ where: { id: targetUserId } });
-    if (!user) throw new UnauthorizedException();
-    
+  // ★ここを修正！
+  async login(user: any) {
+    // ペイロード（許可証の中身）に role を追加する
     const payload = { 
-        sub: user.id, 
-        username: user.username, 
-        role: user.role, 
-        companyId: user.company_id 
+      username: user.username, 
+      sub: user.id, 
+      role: user.role // ← これがないと管理者だと認識されません！
     };
+    
     return {
-      token: this.jwtService.sign(payload),
-      username: user.username,
-      role: user.role
+      access_token: this.jwtService.sign(payload),
+      // フロントエンドで使いやすいように、ユーザー情報も返しておくと便利です
+      user: payload 
+    };
+  }
+  
+  // impersonateメソッドがある場合はそのまま残してください
+  async impersonate(userId: number) {
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    const payload = { username: user.username, sub: user.id, role: user.role };
+    return {
+      access_token: this.jwtService.sign(payload),
     };
   }
 }

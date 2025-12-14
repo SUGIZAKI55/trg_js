@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const core_1 = require("@nestjs/core");
 const app_module_1 = require("./src/app.module");
@@ -40,7 +7,7 @@ const department_entity_1 = require("./src/entities/department.entity");
 const section_entity_1 = require("./src/entities/section.entity");
 const user_entity_1 = require("./src/entities/user.entity");
 const question_entity_1 = require("./src/entities/question.entity");
-const bcrypt = __importStar(require("bcrypt"));
+const bcrypt = require("bcrypt");
 const typeorm_1 = require("typeorm");
 async function bootstrap() {
     const app = await core_1.NestFactory.createApplicationContext(app_module_1.AppModule);
@@ -68,26 +35,26 @@ async function bootstrap() {
     const hash = await bcrypt.hash('admin123', 10);
     const masterUser = new user_entity_1.User();
     masterUser.username = "master";
-    masterUser.password_hash = hash;
+    masterUser.password = hash;
     masterUser.role = "MASTER";
     masterUser.company = masterComp;
     await userRepo.save(masterUser);
     const superAdmin = new user_entity_1.User();
     superAdmin.username = "superadmin_a";
-    superAdmin.password_hash = hash;
+    superAdmin.password = hash;
     superAdmin.role = "SUPER_ADMIN";
     superAdmin.company = clientA;
     await userRepo.save(superAdmin);
     const deptAdmin = new user_entity_1.User();
     deptAdmin.username = "manager_sales";
-    deptAdmin.password_hash = hash;
+    deptAdmin.password = hash;
     deptAdmin.role = "ADMIN";
     deptAdmin.company = clientA;
     deptAdmin.department = deptSales;
     await userRepo.save(deptAdmin);
     const staff = new user_entity_1.User();
     staff.username = "staff_01";
-    staff.password_hash = hash;
+    staff.password = hash;
     staff.role = "USER";
     staff.company = clientA;
     staff.department = deptSales;

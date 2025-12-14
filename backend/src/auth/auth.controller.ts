@@ -1,19 +1,27 @@
-import { Controller, Post, Body, UseGuards, Request, Param } from '@nestjs/common';
+import { Controller, Request, Post, UseGuards, Body, Get } from '@nestjs/common'; // Getを追加
 import { AuthService } from './auth.service';
+import { LocalAuthGuard } from './local-auth.guard';
+import { JwtAuthGuard } from './jwt-auth.guard'; // ★追加: さっき作ったファイルをインポート
 
 @Controller('api/auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Body() req) {
-    return this.authService.login(req.username, req.password);
+  async login(@Request() req) {
+    return this.authService.login(req.user);
   }
 
-  // マスター専用: 特定ユーザーになりすまし
+  // ★追加: ここが重要！ダッシュボードがここを呼びます
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  getProfile(@Request() req) {
+    return req.user;
+  }
+
   @Post('impersonate')
-  async impersonate(@Body() body) {
-    // ※実運用ではここでMaster権限チェックが必要
+  async impersonate(@Body() body: { userId: number }) {
     return this.authService.impersonate(body.userId);
   }
 }

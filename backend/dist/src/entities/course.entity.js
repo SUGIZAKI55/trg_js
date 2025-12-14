@@ -13,13 +13,6 @@ exports.Course = void 0;
 const typeorm_1 = require("typeorm");
 const company_entity_1 = require("./company.entity");
 let Course = class Course {
-    id;
-    title;
-    description;
-    is_shared;
-    company_id;
-    company;
-    question_ids_json;
 };
 exports.Course = Course;
 __decorate([

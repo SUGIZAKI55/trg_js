@@ -1,22 +1,27 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../entities/user.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { UsersModule } from '../users/users.module';
+import { LocalStrategy } from './local.strategy';
+import { LocalAuthGuard } from './local-auth.guard';
+// ★追加1: 新しいファイルをインポート
 import { JwtStrategy } from './jwt.strategy';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    UsersModule,
     PassportModule,
     JwtModule.register({
-      secret: 'SECRET_KEY_DEV', // 本番では環境変数へ
-      signOptions: { expiresIn: '1h' },
+      secret: 'SECRET_KEY', // ※実際の運用では環境変数にしてください
+      signOptions: { expiresIn: '60m' },
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  // ★追加2: ここに JwtStrategy を入れないと動きません！
+  providers: [AuthService, LocalStrategy, JwtStrategy, LocalAuthGuard, JwtAuthGuard],
   controllers: [AuthController],
+  exports: [AuthService],
 })
 export class AuthModule {}

@@ -12,13 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Question = void 0;
 const typeorm_1 = require("typeorm");
 let Question = class Question {
-    id;
-    genre;
-    title;
-    choices;
-    answer;
-    explanation;
-    company_id;
 };
 exports.Question = Question;
 __decorate([

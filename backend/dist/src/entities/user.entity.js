@@ -14,17 +14,8 @@ const typeorm_1 = require("typeorm");
 const company_entity_1 = require("./company.entity");
 const department_entity_1 = require("./department.entity");
 const section_entity_1 = require("./section.entity");
+const learning_log_entity_1 = require("./learning-log.entity");
 let User = class User {
-    id;
-    username;
-    password_hash;
-    role;
-    company_id;
-    company;
-    department_id;
-    department;
-    section_id;
-    section;
 };
 exports.User = User;
 __decorate([
@@ -38,38 +29,30 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
-], User.prototype, "password_hash", void 0);
+], User.prototype, "password", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], User.prototype, "role", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", Number)
-], User.prototype, "company_id", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => company_entity_1.Company, (company) => company.users),
+    (0, typeorm_1.ManyToOne)(() => company_entity_1.Company, (company) => company.users, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'company_id' }),
     __metadata("design:type", company_entity_1.Company)
 ], User.prototype, "company", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", Number)
-], User.prototype, "department_id", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => department_entity_1.Department, (dept) => dept.users, { nullable: true }),
+    (0, typeorm_1.ManyToOne)(() => department_entity_1.Department, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'department_id' }),
     __metadata("design:type", department_entity_1.Department)
 ], User.prototype, "department", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", Number)
-], User.prototype, "section_id", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => section_entity_1.Section, (section) => section.users, { nullable: true }),
+    (0, typeorm_1.ManyToOne)(() => section_entity_1.Section, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'section_id' }),
     __metadata("design:type", section_entity_1.Section)
 ], User.prototype, "section", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => learning_log_entity_1.LearningLog, (log) => log.user),
+    __metadata("design:type", Array)
+], User.prototype, "learningLogs", void 0);
 exports.User = User = __decorate([
     (0, typeorm_1.Entity)()
 ], User);

@@ -14,11 +14,6 @@ const typeorm_1 = require("typeorm");
 const department_entity_1 = require("./department.entity");
 const user_entity_1 = require("./user.entity");
 let Section = class Section {
-    id;
-    name;
-    department_id;
-    department;
-    users;
 };
 exports.Section = Section;
 __decorate([

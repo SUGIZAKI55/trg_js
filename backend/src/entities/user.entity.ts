@@ -1,7 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { Company } from './company.entity';
 import { Department } from './department.entity';
 import { Section } from './section.entity';
+import { LearningLog } from './learning-log.entity';
 
 @Entity()
 export class User {
@@ -11,31 +12,27 @@ export class User {
   @Column({ unique: true })
   username: string;
 
+  // ★これを忘れていたのが原因！
   @Column()
-  password_hash: string;
+  password: string;
 
-  // Role: 'MASTER', 'SUPER_ADMIN', 'ADMIN', 'USER'
   @Column()
   role: string;
 
-  @Column()
-  company_id: number;
-
-  @ManyToOne(() => Company, (company) => company.users)
+  // --- リレーション設定 ---
+  
+  @ManyToOne(() => Company, (company) => company.users, { nullable: true })
   @JoinColumn({ name: 'company_id' })
   company: Company;
 
-  @Column({ nullable: true })
-  department_id: number;
-
-  @ManyToOne(() => Department, (dept) => dept.users, { nullable: true })
+  @ManyToOne(() => Department, { nullable: true })
   @JoinColumn({ name: 'department_id' })
   department: Department;
 
-  @Column({ nullable: true })
-  section_id: number;
-
-  @ManyToOne(() => Section, (section) => section.users, { nullable: true })
+  @ManyToOne(() => Section, { nullable: true })
   @JoinColumn({ name: 'section_id' })
   section: Section;
+
+  @OneToMany(() => LearningLog, (log) => log.user)
+  learningLogs: LearningLog[];
 }

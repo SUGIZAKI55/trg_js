@@ -15,12 +15,6 @@ const company_entity_1 = require("./company.entity");
 const section_entity_1 = require("./section.entity");
 const user_entity_1 = require("./user.entity");
 let Department = class Department {
-    id;
-    name;
-    company_id;
-    company;
-    sections;
-    users;
 };
 exports.Department = Department;
 __decorate([
