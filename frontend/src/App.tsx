@@ -17,14 +17,22 @@ import MyResults from './components/MyResults';
 import DeveloperFlow from './components/DeveloperFlow'; 
 import MyAnalysis from './components/MyAnalysis';
 import LearnerAnalysis from './components/LearnerAnalysis';
-import BulkRegister from './components/BulkRegister'; // インポート
+import BulkRegister from './components/BulkRegister'; 
 
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
 
 function App() {
   const { auth } = useAuth();
-  const isAdminOrMaster = auth && (auth.role === 'admin' || auth.role === 'master');
+
+  // ★修正: 権限を大文字に統一して判定する（NestJS対応）
+  const role = auth?.role ? String(auth.role).toUpperCase() : '';
+  
+  // 管理者権限を持つロール（MASTER, SUPER_ADMIN, ADMIN）
+  const isAdminOrMaster = ['MASTER', 'SUPER_ADMIN', 'ADMIN'].includes(role);
+  
+  // マスターのみの権限
+  const isMaster = role === 'MASTER';
   
   return (
     <div style={{ width: '80%', margin: '0 auto', paddingTop: '2rem' }}>
@@ -46,7 +54,10 @@ function App() {
         {/* --- 管理者用のルート --- */}
         <Route path="/admin" element={isAdminOrMaster ? <AdminDashboard /> : <Navigate to="/login" />} />
         <Route path="/users" element={isAdminOrMaster ? <UserList /> : <Navigate to="/login" />} />
-        <Route path="/register_company" element={auth && auth.role === 'master' ? <RegisterCompany /> : <Navigate to="/login" />} />
+        
+        {/* ★修正: Master権限判定を新しい変数(isMaster)に変更 */}
+        <Route path="/register_company" element={isMaster ? <RegisterCompany /> : <Navigate to="/login" />} />
+        
         <Route path="/q_list" element={isAdminOrMaster ? <QuestionManager /> : <Navigate to="/login" />} />
         <Route path="/view" element={isAdminOrMaster ? <TestResults /> : <Navigate to="/login" />} />
         <Route path="/register_staff" element={isAdminOrMaster ? <RegisterStaff /> : <Navigate to="/login" />} />
@@ -57,6 +68,7 @@ function App() {
         <Route path="/admin/bulk" element={isAdminOrMaster ? <BulkRegister /> : <Navigate to="/login" />} />
 
         {/* --- デフォルトルート --- */}
+        {/* ここで管理者なら /admin へ、一般なら /dashboard へ振り分け */}
         <Route
           path="*"
           element={

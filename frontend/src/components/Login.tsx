@@ -13,11 +13,31 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await axios.post('/api/auth/login', { username, password });
+      // 1. バックエンドにログイン要求
+      const res = await axios.post('http://localhost:3000/api/auth/login', { username, password });
+      
+      // ★デバッグ用: コンソールにデータを表示
+      console.log("ログイン成功:", res.data);
+      console.log("Role:", res.data.role);
+
+      // 2. 認証状態を保存
       login(res.data.token, res.data.username, res.data.role);
-      navigate(res.data.role === 'admin' || res.data.role === 'master' ? '/admin' : '/dashboard');
+
+      // 3. 権限チェック（大文字・小文字を無視して判定）
+      const role = res.data.role ? String(res.data.role).toUpperCase() : '';
+      const adminRoles = ['MASTER', 'SUPER_ADMIN', 'ADMIN'];
+
+      if (adminRoles.includes(role)) {
+        console.log("管理者画面(/admin)へ移動");
+        navigate('/admin');
+      } else {
+        console.log("ユーザー画面(/dashboard)へ移動");
+        navigate('/dashboard');
+      }
+
     } catch (err) {
-      setError('ログインに失敗しました。');
+      console.error("ログインエラー:", err);
+      setError('ログインに失敗しました。サーバー(backend)が起動しているか確認してください。');
     }
   };
 
