@@ -1,130 +1,98 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
+interface Company {
+  id: number;
+  name: string;
+}
+
 const RegisterCompany: React.FC = () => {
-    const { auth } = useAuth();
-    const navigate = useNavigate();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyName, setCompanyName] = useState('');
+  const [message, setMessage] = useState('');
+  const navigate = useNavigate();
 
-    const [companyName, setCompanyName] = useState('');
-    const [adminUsername, setAdminUsername] = useState('');
-    const [adminPassword, setAdminPassword] = useState('');
-    const [message, setMessage] = useState<string | null>(null);
-    const [isError, setIsError] = useState<boolean>(false);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+  // 画面を開いたときに一覧を取得
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
 
-    // ★★★ 修正箇所: 権限チェックとリダイレクトを useEffect 内に移動 ★★★
-    useEffect(() => {
-        // authが存在しない、または権限がmasterではない場合
-        if (!auth || auth.role !== 'master') {
-            // 管理画面にリダイレクト。replace: true でブラウザ履歴を汚さないようにする
-            navigate('/admin', { replace: true });
-        }
-    }, [auth, navigate]); // auth または navigate が変更されたときに実行
-
-    // 権限チェックが完了する前や、リダイレクト処理中にコンポーネントが不要なレンダリングを行うのを防ぐ
-    if (!auth || auth.role !== 'master') {
-        return null;
+  const fetchCompanies = async () => {
+    try {
+      // APIからデータを取得
+      const res = await axios.get('http://localhost:3000/api/companies');
+      setCompanies(res.data);
+    } catch (error) {
+      console.error(error);
     }
-    // ★★★ 修正箇所ここまで ★★★
+  };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setMessage(null);
-        setIsError(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyName) return;
 
-        try {
-            const response = await fetch('/api/master/register_company', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // トークンをヘッダーに含める
-                    'Authorization': `Bearer ${auth.token}`,
-                },
-                body: JSON.stringify({
-                    company_name: companyName,
-                    admin_username: adminUsername,
-                    admin_password: adminPassword,
-                }),
-            });
+    try {
+      // 会社登録APIを叩く
+      await axios.post('http://localhost:3000/api/companies', { name: companyName });
+      setMessage('会社を登録しました！');
+      setCompanyName('');
+      fetchCompanies(); // リストを更新
+    } catch (error) {
+      console.error(error);
+      setMessage('登録に失敗しました。');
+    }
+  };
 
-            const data = await response.json();
+  return (
+    <div className="container mt-5">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2>会社管理</h2>
+        <button className="btn btn-secondary" onClick={() => navigate('/admin')}>戻る</button>
+      </div>
 
-            if (response.ok) {
-                setMessage(data.message || '企業と管理者を正常に登録しました。');
-                setIsError(false);
-                // 成功したらフォームをリセット
-                setCompanyName('');
-                setAdminUsername('');
-                setAdminPassword('');
-            } else {
-                // サーバーから返されたエラーメッセージを表示
-                setMessage(data.message || '登録に失敗しました。');
-                setIsError(true);
-            }
-        } catch (err: any) {
-            setMessage('ネットワークエラーが発生しました。');
-            setIsError(true);
-            console.error('API登録エラー:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="container mt-5">
-            <h1 className="text-center mb-4">企業・管理者登録</h1>
-            {message && (
-                <div className={`alert ${isError ? 'alert-danger' : 'alert-success'}`}>
-                    {message}
+      <div className="row">
+        {/* 左側：登録フォーム */}
+        <div className="col-md-5">
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-primary text-white">新規登録</div>
+            <div className="card-body">
+              {message && <div className="alert alert-info">{message}</div>}
+              <form onSubmit={handleSubmit}>
+                <div className="mb-3">
+                  <label className="form-label">会社名</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="例: 株式会社サンプル"
+                  />
                 </div>
-            )}
-            <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                    <label htmlFor="companyName">企業名</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        id="companyName"
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                        required
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="adminUsername">管理者ユーザー名</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        id="adminUsername"
-                        value={adminUsername}
-                        onChange={(e) => setAdminUsername(e.target.value)}
-                        required
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="adminPassword">管理者パスワード</label>
-                    <input
-                        type="password"
-                        className="form-control"
-                        id="adminPassword"
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                        required
-                    />
-                </div>
-                <button type="submit" className="btn btn-primary btn-block mt-3" disabled={isLoading}>
-                    {isLoading ? '登録中...' : '登録'}
-                </button>
-            </form>
-            <div className="text-center mt-3">
-                <button className="btn btn-secondary" onClick={() => navigate('/admin')}>
-                    管理画面に戻る
-                </button>
+                <button type="submit" className="btn btn-success w-100">登録する</button>
+              </form>
             </div>
+          </div>
         </div>
-    );
+
+        {/* 右側：一覧表示 */}
+        <div className="col-md-7">
+          <div className="card shadow-sm">
+            <div className="card-header">登録済み会社一覧</div>
+            <ul className="list-group list-group-flush">
+              {companies.map((c) => (
+                <li key={c.id} className="list-group-item d-flex justify-content-between">
+                  <span>{c.name}</span>
+                  <span className="badge bg-secondary">ID: {c.id}</span>
+                </li>
+              ))}
+              {companies.length === 0 && <li className="list-group-item">データなし</li>}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default RegisterCompany;
