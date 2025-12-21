@@ -61,12 +61,21 @@ async function bootstrap() {
     staff.section = section1;
     await userRepo.save(staff);
     const q1 = new question_entity_1.Question();
+    q1.type = "SINGLE";
     q1.genre = "Business";
     q1.title = "名刺交換で適切なのは？";
-    q1.choices = "A:相手より低く出す|B:投げて渡す|C:折り曲げる";
-    q1.answer = "A:相手より低く出す";
-    q1.company_id = clientA.id;
+    q1.choices = "A:相手より低く出す|B:投げて渡す|C:折り曲げる|D:受け取らない";
+    q1.answer = "A";
+    q1.company = clientA;
     await questionRepo.save(q1);
+    const q2 = new question_entity_1.Question();
+    q2.type = "MULTIPLE";
+    q2.genre = "IT";
+    q2.title = "安全なパスワードの特徴をすべて選べ";
+    q2.choices = "A:8文字以上|B:誕生日を使う|C:記号を含む|D:名前そのままである";
+    q2.answer = "A,C";
+    q2.company = clientA;
+    await questionRepo.save(q2);
     console.log('Seeding completed!');
     await app.close();
 }

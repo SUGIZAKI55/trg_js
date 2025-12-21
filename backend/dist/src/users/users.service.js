@@ -22,33 +22,41 @@ let UsersService = class UsersService {
     constructor(usersRepository) {
         this.usersRepository = usersRepository;
     }
-    findAll() {
-        return this.usersRepository.find({
-            relations: ['company', 'department', 'section'],
-        });
-    }
-    findOne(id) {
-        return this.usersRepository.findOne({
-            where: { id },
-            relations: ['company', 'department', 'section'],
-        });
-    }
-    async create(userData) {
-        const salt = await bcrypt.genSalt();
-        const hashedPassword = await bcrypt.hash(userData.password, salt);
-        const newUser = this.usersRepository.create({
-            username: userData.username,
-            password: hashedPassword,
-            role: userData.role,
-            company: userData.companyId ? { id: Number(userData.companyId) } : null,
-        });
-        return this.usersRepository.save(newUser);
-    }
-    findOneByUsername(username) {
+    async findOneByUsername(username) {
         return this.usersRepository.findOne({
             where: { username },
-            relations: ['company'],
+            relations: ['company']
         });
+    }
+    async findAll(currentUser) {
+        if (currentUser.role === 'MASTER') {
+            return this.usersRepository.find({
+                relations: ['company', 'department', 'section'],
+            });
+        }
+        else {
+            return this.usersRepository.find({
+                where: {
+                    company: { id: currentUser.companyId }
+                },
+                relations: ['company', 'department', 'section'],
+            });
+        }
+    }
+    async findOne(id) {
+        return this.usersRepository.findOne({
+            where: { id },
+            relations: ['company', 'department', 'section']
+        });
+    }
+    async create(createUserDto) {
+        const salt = await bcrypt.genSalt();
+        const hashedPassword = await bcrypt.hash(createUserDto.password || 'password123', salt);
+        const newUser = this.usersRepository.create({
+            ...createUserDto,
+            password: hashedPassword,
+        });
+        return this.usersRepository.save(newUser);
     }
 };
 exports.UsersService = UsersService;

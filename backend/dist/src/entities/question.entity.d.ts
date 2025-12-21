@@ -1,9 +1,10 @@
+import { Company } from './company.entity';
 export declare class Question {
     id: number;
+    type: string;
     genre: string;
     title: string;
     choices: string;
     answer: string;
-    explanation: string;
-    company_id: number;
+    company: Company;
 }

@@ -28,14 +28,19 @@ let AuthService = class AuthService {
         return null;
     }
     async login(user) {
+        const companyId = user.company ? user.company.id : null;
         const payload = {
             username: user.username,
             sub: user.id,
-            role: user.role
+            role: user.role,
+            companyId: companyId
         };
         return {
-            access_token: this.jwtService.sign(payload),
-            user: payload
+            token: this.jwtService.sign(payload),
+            username: user.username,
+            role: user.role,
+            companyId: companyId,
+            userId: user.id
         };
     }
     async impersonate(userId) {
@@ -43,9 +48,18 @@ let AuthService = class AuthService {
         if (!user) {
             throw new Error('User not found');
         }
-        const payload = { username: user.username, sub: user.id, role: user.role };
+        const companyId = user.company ? user.company.id : null;
+        const payload = {
+            username: user.username,
+            sub: user.id,
+            role: user.role,
+            companyId: companyId
+        };
         return {
-            access_token: this.jwtService.sign(payload),
+            token: this.jwtService.sign(payload),
+            username: user.username,
+            role: user.role,
+            companyId: companyId
         };
     }
 };

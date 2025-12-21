@@ -7,14 +7,12 @@ export declare class UsersController {
         username: any;
         review_count: number;
         genre_stats: {
-            JavaScript: number;
-            React: number;
-            NestJS: number;
-            TypeScript: number;
-            CSS: number;
+            Business: number;
+            IT: number;
+            Compliance: number;
         };
     };
     create(createUserDto: CreateUserDto): Promise<import("../entities/user.entity").User>;
-    findAll(): Promise<import("../entities/user.entity").User[]>;
+    findAll(req: any): Promise<import("../entities/user.entity").User[]>;
     findOne(id: string): Promise<import("../entities/user.entity").User>;
 }

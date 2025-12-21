@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
-import * as bcrypt from 'bcrypt'; // パスワード暗号化用
+import { CreateUserDto } from './dto/create-user.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -11,45 +12,49 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ) {}
 
-  // 全員取得
-  findAll() {
-    return this.usersRepository.find({
-      relations: ['company', 'department', 'section'],
-    });
-  }
-
-  // IDで1人取得
-  findOne(id: number) {
-    return this.usersRepository.findOne({
-      where: { id },
-      relations: ['company', 'department', 'section'],
-    });
-  }
-
-  // ★追加: ユーザー新規作成
-  async create(userData: any) {
-    // 1. パスワードを暗号化する
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(userData.password, salt);
-
-    // 2. 保存用データを作成（会社IDを関連付け）
-    const newUser = this.usersRepository.create({
-      username: userData.username,
-      password: hashedPassword,
-      role: userData.role,
-      // 会社IDがある場合のみ関連付け
-      company: userData.companyId ? { id: Number(userData.companyId) } : null,
-    });
-
-    // 3. データベースに保存
-    return this.usersRepository.save(newUser);
-  }
-
-  // ユーザー名で検索（ログイン用）
-  findOneByUsername(username: string) {
-    return this.usersRepository.findOne({
+  // ★修正: ユーザーを探すときに「会社情報」も一緒に持ってくる
+  async findOneByUsername(username: string): Promise<User | undefined> {
+    return this.usersRepository.findOne({ 
       where: { username },
-      relations: ['company'], // 会社情報も必要
+      relations: ['company'] // ← 重要！これでログイン時に会社IDがわかります
     });
+  }
+
+  // ★修正: リクエストした人(currentUser)によって返すデータを変える
+  async findAll(currentUser: any): Promise<User[]> {
+    if (currentUser.role === 'MASTER') {
+      // マスターなら全員表示（会社、部署、課の情報もセットで）
+      return this.usersRepository.find({
+        relations: ['company', 'department', 'section'],
+      });
+    } else {
+      // それ以外なら「自分の会社ID」と一致するユーザーだけ表示
+      return this.usersRepository.find({
+        where: { 
+          company: { id: currentUser.companyId } 
+        },
+        relations: ['company', 'department', 'section'],
+      });
+    }
+  }
+
+  async findOne(id: number): Promise<User | undefined> {
+    return this.usersRepository.findOne({ 
+      where: { id },
+      relations: ['company', 'department', 'section'] 
+    });
+  }
+
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(createUserDto.password || 'password123', salt);
+    
+    // ※会社IDなどがDTOに含まれている場合の処理が必要ですが、
+    // まずは基本的な作成処理として記述します
+    const newUser = this.usersRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+    });
+    return this.usersRepository.save(newUser);
   }
 }

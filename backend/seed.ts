@@ -20,74 +20,39 @@ async function bootstrap() {
   const userRepo = dataSource.getRepository(User);
   const questionRepo = dataSource.getRepository(Question);
 
-  // 1. マスター企業 (サービス提供元)
-  let masterComp = new Company();
-  masterComp.name = "SugiTech Master";
-  masterComp = await companyRepo.save(masterComp);
+  // 1. 会社・部署・ユーザー作成 (変更なし)
+  let masterComp = new Company(); masterComp.name = "SugiTech Master"; masterComp = await companyRepo.save(masterComp);
+  let clientA = new Company(); clientA.name = "Client Corp A"; clientA = await companyRepo.save(clientA);
+  let deptSales = new Department(); deptSales.name = "営業部"; deptSales.company = clientA; deptSales = await deptRepo.save(deptSales);
+  let section1 = new Section(); section1.name = "営業一課"; section1.department = deptSales; section1 = await sectionRepo.save(section1);
 
-  // 2. クライアント企業A
-  let clientA = new Company();
-  clientA.name = "Client Corp A";
-  clientA = await companyRepo.save(clientA);
-
-  // 3. 部署作成 (営業部)
-  let deptSales = new Department();
-  deptSales.name = "営業部";
-  deptSales.company = clientA;
-  deptSales = await deptRepo.save(deptSales);
-
-  // 4. 課作成 (営業一課)
-  let section1 = new Section();
-  section1.name = "営業一課";
-  section1.department = deptSales;
-  section1 = await sectionRepo.save(section1);
-
-  // --- ユーザー作成 (Passは全部 'admin123') ---
   const hash = await bcrypt.hash('admin123', 10);
 
-  // Master User
-  const masterUser = new User();
-  masterUser.username = "master";
-  masterUser.password = hash;
-  masterUser.role = "MASTER";
-  masterUser.company = masterComp;
-  await userRepo.save(masterUser);
+  const masterUser = new User(); masterUser.username = "master"; masterUser.password = hash; masterUser.role = "MASTER"; masterUser.company = masterComp; await userRepo.save(masterUser);
+  const superAdmin = new User(); superAdmin.username = "superadmin_a"; superAdmin.password = hash; superAdmin.role = "SUPER_ADMIN"; superAdmin.company = clientA; await userRepo.save(superAdmin);
+  const deptAdmin = new User(); deptAdmin.username = "manager_sales"; deptAdmin.password = hash; deptAdmin.role = "ADMIN"; deptAdmin.company = clientA; deptAdmin.department = deptSales; await userRepo.save(deptAdmin);
+  const staff = new User(); staff.username = "staff_01"; staff.password = hash; staff.role = "USER"; staff.company = clientA; staff.department = deptSales; staff.section = section1; await userRepo.save(staff);
 
-  // Super Admin (企業管理者)
-  const superAdmin = new User();
-  superAdmin.username = "superadmin_a";
-  superAdmin.password = hash;
-  superAdmin.role = "SUPER_ADMIN";
-  superAdmin.company = clientA;
-  await userRepo.save(superAdmin);
-
-  // Admin (部長)
-  const deptAdmin = new User();
-  deptAdmin.username = "manager_sales";
-  deptAdmin.password = hash;
-  deptAdmin.role = "ADMIN";
-  deptAdmin.company = clientA;
-  deptAdmin.department = deptSales;
-  await userRepo.save(deptAdmin);
-
-  // User (一般社員 - 課所属)
-  const staff = new User();
-  staff.username = "staff_01";
-  staff.password = hash;
-  staff.role = "USER";
-  staff.company = clientA;
-  staff.department = deptSales;
-  staff.section = section1;
-  await userRepo.save(staff);
-
-  // --- 問題データ (ダミー) ---
+  // --- 問題データ (ここを更新) ---
   const q1 = new Question();
+  q1.type = "SINGLE"; // 単一選択
   q1.genre = "Business";
   q1.title = "名刺交換で適切なのは？";
-  q1.choices = "A:相手より低く出す|B:投げて渡す|C:折り曲げる";
-  q1.answer = "A:相手より低く出す";
-  q1.company_id = clientA.id;
+  // 選択肢だけを保存
+  q1.choices = "A:相手より低く出す|B:投げて渡す|C:折り曲げる|D:受け取らない";
+  q1.answer = "A"; // 正解は記号のみ保存
+  q1.company = clientA; 
   await questionRepo.save(q1);
+
+  // 複数選択のサンプル
+  const q2 = new Question();
+  q2.type = "MULTIPLE"; // 複数選択
+  q2.genre = "IT";
+  q2.title = "安全なパスワードの特徴をすべて選べ";
+  q2.choices = "A:8文字以上|B:誕生日を使う|C:記号を含む|D:名前そのままである";
+  q2.answer = "A,C"; // AとCが正解
+  q2.company = clientA;
+  await questionRepo.save(q2);
 
   console.log('Seeding completed!');
   await app.close();

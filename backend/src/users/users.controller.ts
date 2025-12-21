@@ -1,26 +1,24 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // ★追加
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@Controller('api/users') // ← ここが "users" (複数形) であることを確認
+@Controller('api/users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ★追加: ダッシュボード用のデータを返すAPI
+  // ダッシュボード用データ（前回追加したもの）
   @UseGuards(JwtAuthGuard)
   @Get('dashboard_data')
   getDashboardData(@Request() req) {
-    // 本来はデータベースから集計しますが、まずは表示確認用にダミーデータを返します
+    // 簡易的なダミーデータを返します（後で本格実装可）
     return {
       username: req.user.username,
-      review_count: 5, // 未復習の数（仮）
-      genre_stats: {   // レーダーチャート用データ（仮）
-        'JavaScript': 80,
-        'React': 65,
-        'NestJS': 40,
-        'TypeScript': 90,
-        'CSS': 55
+      review_count: 5,
+      genre_stats: {
+        'Business': 80,
+        'IT': 65,
+        'Compliance': 90
       }
     };
   }
@@ -30,9 +28,12 @@ export class UsersController {
     return this.usersService.create(createUserDto);
   }
 
+  // ★修正: ユーザー一覧取得時に、誰がアクセスしたか(req.user)を渡す
+  @UseGuards(JwtAuthGuard)
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Request() req) {
+    // req.user には companyId や role が入っています
+    return this.usersService.findAll(req.user);
   }
 
   @Get(':id')

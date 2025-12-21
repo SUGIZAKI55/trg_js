@@ -6,14 +6,16 @@ export declare class AuthService {
     constructor(usersService: UsersService, jwtService: JwtService);
     validateUser(username: string, pass: string): Promise<any>;
     login(user: any): Promise<{
-        access_token: string;
-        user: {
-            username: any;
-            sub: any;
-            role: any;
-        };
+        token: string;
+        username: any;
+        role: any;
+        companyId: any;
+        userId: any;
     }>;
     impersonate(userId: number): Promise<{
-        access_token: string;
+        token: string;
+        username: string;
+        role: string;
+        companyId: number;
     }>;
 }

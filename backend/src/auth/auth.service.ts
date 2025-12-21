@@ -19,31 +19,48 @@ export class AuthService {
     return null;
   }
 
-  // ★ここを修正！
+  // ★修正: トークンに companyId を追加
   async login(user: any) {
-    // ペイロード（許可証の中身）に role を追加する
+    // 会社に所属していない場合（Masterなど）を考慮して安全に取り出す
+    const companyId = user.company ? user.company.id : null;
+
     const payload = { 
       username: user.username, 
       sub: user.id, 
-      role: user.role // ← これがないと管理者だと認識されません！
+      role: user.role,
+      companyId: companyId // ← 追加
     };
     
     return {
-      access_token: this.jwtService.sign(payload),
-      // フロントエンドで使いやすいように、ユーザー情報も返しておくと便利です
-      user: payload 
+      token: this.jwtService.sign(payload),
+      username: user.username,
+      role: user.role,
+      companyId: companyId,
+      userId: user.id
     };
   }
-  
-  // impersonateメソッドがある場合はそのまま残してください
+
+  // ★修正: こちらも同様に companyId を追加
   async impersonate(userId: number) {
     const user = await this.usersService.findOne(userId);
     if (!user) {
       throw new Error('User not found');
     }
-    const payload = { username: user.username, sub: user.id, role: user.role };
+
+    const companyId = user.company ? user.company.id : null;
+    
+    const payload = { 
+      username: user.username, 
+      sub: user.id, 
+      role: user.role,
+      companyId: companyId // ← 追加
+    };
+
     return {
-      access_token: this.jwtService.sign(payload),
+      token: this.jwtService.sign(payload),
+      username: user.username,
+      role: user.role,
+      companyId: companyId
     };
   }
 }

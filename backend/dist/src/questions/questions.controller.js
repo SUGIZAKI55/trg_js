@@ -12,69 +12,51 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UsersController = void 0;
+exports.QuestionsController = void 0;
 const common_1 = require("@nestjs/common");
-const users_service_1 = require("./users.service");
-const create_user_dto_1 = require("./dto/create-user.dto");
+const questions_service_1 = require("./questions.service");
+const create_question_dto_1 = require("./dto/create-question.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
-let UsersController = class UsersController {
-    constructor(usersService) {
-        this.usersService = usersService;
+let QuestionsController = class QuestionsController {
+    constructor(questionsService) {
+        this.questionsService = questionsService;
     }
-    getDashboardData(req) {
-        return {
-            username: req.user.username,
-            review_count: 5,
-            genre_stats: {
-                'Business': 80,
-                'IT': 65,
-                'Compliance': 90
-            }
-        };
-    }
-    create(createUserDto) {
-        return this.usersService.create(createUserDto);
+    create(createQuestionDto, req) {
+        return this.questionsService.create(createQuestionDto, req.user);
     }
     findAll(req) {
-        return this.usersService.findAll(req.user);
+        return this.questionsService.findAll(req.user);
     }
-    findOne(id) {
-        return this.usersService.findOne(+id);
+    remove(id) {
+        return this.questionsService.remove(+id);
     }
 };
-exports.UsersController = UsersController;
-__decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, common_1.Get)('dashboard_data'),
-    __param(0, (0, common_1.Request)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
-], UsersController.prototype, "getDashboardData", null);
+exports.QuestionsController = QuestionsController;
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_user_dto_1.CreateUserDto]),
+    __metadata("design:paramtypes", [create_question_dto_1.CreateQuestionDto, Object]),
     __metadata("design:returntype", void 0)
-], UsersController.prototype, "create", null);
+], QuestionsController.prototype, "create", null);
 __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)(),
     __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
-], UsersController.prototype, "findAll", null);
+], QuestionsController.prototype, "findAll", null);
 __decorate([
-    (0, common_1.Get)(':id'),
+    (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
-], UsersController.prototype, "findOne", null);
-exports.UsersController = UsersController = __decorate([
-    (0, common_1.Controller)('api/users'),
-    __metadata("design:paramtypes", [users_service_1.UsersService])
-], UsersController);
-//# sourceMappingURL=users.controller.js.map
+], QuestionsController.prototype, "remove", null);
+exports.QuestionsController = QuestionsController = __decorate([
+    (0, common_1.Controller)('api/questions'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __metadata("design:paramtypes", [questions_service_1.QuestionsService])
+], QuestionsController);
+//# sourceMappingURL=questions.controller.js.map

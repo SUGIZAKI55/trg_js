@@ -8,12 +8,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: 'SECRET_KEY', // auth.module.tsと同じ鍵にする
+      secretOrKey: 'SECRET_KEY', // ※auth.module.tsと同じ鍵
     });
   }
 
   async validate(payload: any) {
-    // ここで返した値が req.user になります
-    return { userId: payload.sub, username: payload.username, role: payload.role };
+    // ★修正: ここで返した値が req.user になります。companyIdを追加！
+    return { 
+      userId: payload.sub, 
+      username: payload.username, 
+      role: payload.role,
+      companyId: payload.companyId // ← これがないとコントローラーで使えません
+    };
   }
 }

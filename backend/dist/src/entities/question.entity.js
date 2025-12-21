@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Question = void 0;
 const typeorm_1 = require("typeorm");
+const company_entity_1 = require("./company.entity");
 let Question = class Question {
 };
 exports.Question = Question;
@@ -18,6 +19,10 @@ __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)(),
     __metadata("design:type", Number)
 ], Question.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'SINGLE' }),
+    __metadata("design:type", String)
+], Question.prototype, "type", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
@@ -35,13 +40,10 @@ __decorate([
     __metadata("design:type", String)
 ], Question.prototype, "answer", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
-    __metadata("design:type", String)
-], Question.prototype, "explanation", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", Number)
-], Question.prototype, "company_id", void 0);
+    (0, typeorm_1.ManyToOne)(() => company_entity_1.Company, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'company_id' }),
+    __metadata("design:type", company_entity_1.Company)
+], Question.prototype, "company", void 0);
 exports.Question = Question = __decorate([
     (0, typeorm_1.Entity)()
 ], Question);
