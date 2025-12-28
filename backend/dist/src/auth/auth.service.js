@@ -39,8 +39,9 @@ let AuthService = class AuthService {
             token: this.jwtService.sign(payload),
             username: user.username,
             role: user.role,
+            userId: user.id,
             companyId: companyId,
-            userId: user.id
+            company: user.company ? { name: user.company.name } : null
         };
     }
     async impersonate(userId) {
@@ -59,7 +60,8 @@ let AuthService = class AuthService {
             token: this.jwtService.sign(payload),
             username: user.username,
             role: user.role,
-            companyId: companyId
+            companyId: companyId,
+            company: user.company ? { name: user.company.name } : null
         };
     }
 };

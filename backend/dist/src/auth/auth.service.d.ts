@@ -9,13 +9,19 @@ export declare class AuthService {
         token: string;
         username: any;
         role: any;
-        companyId: any;
         userId: any;
+        companyId: any;
+        company: {
+            name: any;
+        };
     }>;
     impersonate(userId: number): Promise<{
         token: string;
         username: string;
         role: string;
         companyId: number;
+        company: {
+            name: string;
+        };
     }>;
 }

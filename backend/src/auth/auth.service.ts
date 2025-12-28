@@ -10,6 +10,7 @@ export class AuthService {
     private jwtService: JwtService
   ) {}
 
+  // ユーザー認証
   async validateUser(username: string, pass: string): Promise<any> {
     const user = await this.usersService.findOneByUsername(username);
     if (user && (await bcrypt.compare(pass, user.password))) {
@@ -19,28 +20,31 @@ export class AuthService {
     return null;
   }
 
-  // ★修正: トークンに companyId を追加
+  // ログイン処理
   async login(user: any) {
-    // 会社に所属していない場合（Masterなど）を考慮して安全に取り出す
     const companyId = user.company ? user.company.id : null;
 
     const payload = { 
       username: user.username, 
       sub: user.id, 
       role: user.role,
-      companyId: companyId // ← 追加
+      companyId: companyId 
     };
     
     return {
       token: this.jwtService.sign(payload),
       username: user.username,
       role: user.role,
+      userId: user.id,
       companyId: companyId,
-      userId: user.id
+      
+      // ★ここが超重要！
+      // これがないとNavbarに「Client Corp A」と表示されません
+      company: user.company ? { name: user.company.name } : null
     };
   }
 
-  // ★修正: こちらも同様に companyId を追加
+  // なりすましログイン（開発用）
   async impersonate(userId: number) {
     const user = await this.usersService.findOne(userId);
     if (!user) {
@@ -53,14 +57,17 @@ export class AuthService {
       username: user.username, 
       sub: user.id, 
       role: user.role,
-      companyId: companyId // ← 追加
+      companyId: companyId 
     };
 
     return {
       token: this.jwtService.sign(payload),
       username: user.username,
       role: user.role,
-      companyId: companyId
+      companyId: companyId,
+      // なりすまし時も会社名を表示したい場合はここにも追加できますが、
+      // まずは通常ログインで確認しましょう
+      company: user.company ? { name: user.company.name } : null
     };
   }
 }

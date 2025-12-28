@@ -1,54 +1,77 @@
-// ★ ReactNode を追加しました
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 
-// 認証情報の型定義
+// 必要な情報をすべて定義
 interface AuthState {
   token: string | null;
   username: string | null;
-  role: string | null; // 'master' | 'admin' | 'staff' など
+  role: string | null;
+  userId: number | null;
+  companyId: number | null;
+  company?: { name: string } | null;
 }
 
-// Contextの型定義
 interface AuthContextType {
   auth: AuthState | null;
-  login: (token: string, username: string, role: string) => void;
-  logout: () => void;
   loading: boolean;
+  login: (data: any) => void;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ★ children の型定義に ReactNode を使用
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+// ★修正: ここを React.ReactNode に書き換えました
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // アプリ起動時にローカルストレージからログイン情報を復元
     const token = localStorage.getItem('token');
     const username = localStorage.getItem('username');
     const role = localStorage.getItem('role');
+    const userId = localStorage.getItem('userId');
+    const companyId = localStorage.getItem('companyId');
+    const companyName = localStorage.getItem('companyName');
 
-    if (token && username && role) {
-      setAuth({ token, username, role });
+    if (token) {
+      setAuth({
+        token,
+        username,
+        role,
+        userId: userId ? Number(userId) : null,
+        companyId: companyId ? Number(companyId) : null,
+        company: companyName ? { name: companyName } : null 
+      });
     }
     setLoading(false);
   }, []);
 
-  // ログイン処理: 3つの情報を受け取って保存
-  const login = (token: string, username: string, role: string) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('username', username);
-    localStorage.setItem('role', role);
-    setAuth({ token, username, role });
+  const login = (data: any) => {
+    setAuth({
+      token: data.token,
+      username: data.username,
+      role: data.role,
+      userId: data.userId,
+      companyId: data.companyId,
+      company: data.company
+    });
+
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('username', data.username);
+    localStorage.setItem('role', data.role);
+    
+    if (data.userId) localStorage.setItem('userId', String(data.userId));
+    if (data.companyId) localStorage.setItem('companyId', String(data.companyId));
+    
+    if (data.company?.name) {
+      localStorage.setItem('companyName', data.company.name);
+    } else {
+      localStorage.removeItem('companyName');
+    }
   };
 
-  // ログアウト処理: 情報を全て削除
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
-    localStorage.removeItem('role');
     setAuth(null);
+    localStorage.clear();
   };
 
   return (
@@ -60,7 +83,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

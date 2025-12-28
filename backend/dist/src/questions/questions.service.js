@@ -28,11 +28,41 @@ let QuestionsService = class QuestionsService {
         });
         return this.questionRepo.save(newQuestion);
     }
+    async createFromCsv(fileBuffer) {
+        const csvContent = fileBuffer.toString('utf-8');
+        const lines = csvContent.split(/\r?\n/);
+        const savedQuestions = [];
+        const clean = (text) => {
+            if (!text)
+                return '';
+            return text.trim().replace(/^"|"$/g, '');
+        };
+        for (const line of lines) {
+            if (!line.trim())
+                continue;
+            const cols = line.split(',');
+            if (cols.length < 8)
+                continue;
+            const genre = clean(cols[0]);
+            const type = clean(cols[1]).toUpperCase();
+            const title = clean(cols[2]);
+            const choices = `A:${clean(cols[3])}|B:${clean(cols[4])}|C:${clean(cols[5])}|D:${clean(cols[6])}`;
+            const answer = clean(cols[7]);
+            const newQuestion = this.questionRepo.create({
+                genre,
+                type,
+                title,
+                choices,
+                answer,
+                company: null
+            });
+            savedQuestions.push(await this.questionRepo.save(newQuestion));
+        }
+        return { count: savedQuestions.length, message: 'CSV import successful' };
+    }
     async findAll(user) {
         if (user.role === 'MASTER') {
-            return this.questionRepo.find({
-                relations: ['company']
-            });
+            return this.questionRepo.find({ relations: ['company'] });
         }
         else {
             return this.questionRepo.find({
@@ -40,6 +70,29 @@ let QuestionsService = class QuestionsService {
                 relations: ['company']
             });
         }
+    }
+    async findCommon() {
+        return this.questionRepo.find({
+            where: { company: null },
+        });
+    }
+    async copyToCompany(questionId, user) {
+        const original = await this.questionRepo.findOne({
+            where: { id: questionId },
+            relations: ['company']
+        });
+        if (!original) {
+            throw new common_1.BadRequestException('問題が見つかりません');
+        }
+        const copy = this.questionRepo.create({
+            genre: original.genre,
+            type: original.type,
+            title: original.title,
+            choices: original.choices,
+            answer: original.answer,
+            company: { id: user.companyId }
+        });
+        return this.questionRepo.save(copy);
     }
     async remove(id) {
         return this.questionRepo.delete(id);

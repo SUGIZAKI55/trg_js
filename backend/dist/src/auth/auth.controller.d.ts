@@ -6,8 +6,11 @@ export declare class AuthController {
         token: string;
         username: any;
         role: any;
-        companyId: any;
         userId: any;
+        companyId: any;
+        company: {
+            name: any;
+        };
     }>;
     getProfile(req: any): any;
     impersonate(body: {
@@ -17,5 +20,8 @@ export declare class AuthController {
         username: string;
         role: string;
         companyId: number;
+        company: {
+            name: string;
+        };
     }>;
 }

@@ -6,7 +6,10 @@ import { useNavigate } from 'react-router-dom';
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  
+  // AuthContextからlogin関数を取得
   const { login } = useAuth();
+  
   const navigate = useNavigate();
   const [error, setError] = useState('');
 
@@ -14,14 +17,16 @@ const Login: React.FC = () => {
     e.preventDefault();
     try {
       // 1. バックエンドにログイン要求
+      // ★修正: URLを '/api/auth/login' に戻しました
       const res = await axios.post('http://localhost:3000/api/auth/login', { username, password });
       
-      // ★デバッグ用: コンソールにデータを表示
+      // ★デバッグ用: 取得したデータをコンソールに表示
       console.log("ログイン成功:", res.data);
       console.log("Role:", res.data.role);
 
       // 2. 認証状態を保存
-      login(res.data.token, res.data.username, res.data.role);
+      // Contextのlogin関数には、レスポンスデータ丸ごと(res.data)を渡す
+      login(res.data);
 
       // 3. 権限チェック（大文字・小文字を無視して判定）
       const role = res.data.role ? String(res.data.role).toUpperCase() : '';
@@ -37,7 +42,11 @@ const Login: React.FC = () => {
 
     } catch (err) {
       console.error("ログインエラー:", err);
-      setError('ログインに失敗しました。サーバー(backend)が起動しているか確認してください。');
+      // エラーの詳細をコンソールに出して確認しやすくします
+      if (axios.isAxiosError(err) && err.response) {
+         console.error("ステータスコード:", err.response.status);
+      }
+      setError('ログインに失敗しました。ユーザー名/パスワードを確認してください。');
     }
   };
 
