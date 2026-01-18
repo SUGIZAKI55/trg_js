@@ -22,7 +22,7 @@ const Navbar: React.FC = () => {
       borderBottom: '1px solid #444',
       marginBottom: '20px'
     }}>
-      {/* 左側：ナビゲーションボタン */}
+      {/* 左側：ナビゲーションボタン（シンプル化） */}
       <div style={{ display: 'flex', gap: '15px' }}>
         <button 
           onClick={() => navigate(-1)} 
@@ -52,8 +52,6 @@ const Navbar: React.FC = () => {
 
       {/* 右側：ユーザー情報とログアウト */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        
-        {/* ★追加: 企業名の表示 (これがないと表示されません) */}
         {auth.company?.name && (
           <span style={{ 
             fontSize: '0.9rem', fontWeight: 'bold', 
@@ -64,7 +62,6 @@ const Navbar: React.FC = () => {
           </span>
         )}
 
-        {/* ユーザー名とロールを見やすく表示 */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: '1.2' }}>
           <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
             👤 {auth.username}

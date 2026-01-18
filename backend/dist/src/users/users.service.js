@@ -29,7 +29,11 @@ let UsersService = class UsersService {
         });
     }
     async findAll(currentUser) {
-        if (currentUser.role === 'MASTER') {
+        console.log('--- UserList Access Debug ---');
+        console.log('Current User:', currentUser);
+        const role = currentUser.role ? String(currentUser.role).toUpperCase() : '';
+        console.log('Normalized Role:', role);
+        if (role === 'MASTER') {
             return this.usersRepository.find({
                 relations: ['company', 'department', 'section'],
             });
@@ -52,11 +56,20 @@ let UsersService = class UsersService {
     async create(createUserDto) {
         const salt = await bcrypt.genSalt();
         const hashedPassword = await bcrypt.hash(createUserDto.password || 'password123', salt);
+        const normalizedRole = createUserDto.role ? createUserDto.role.toUpperCase() : 'USER';
         const newUser = this.usersRepository.create({
             ...createUserDto,
+            role: normalizedRole,
             password: hashedPassword,
         });
         return this.usersRepository.save(newUser);
+    }
+    async remove(id) {
+        const user = await this.usersRepository.findOne({ where: { id } });
+        if (!user) {
+            throw new common_1.NotFoundException(`ID ${id} のユーザーは見つかりません。`);
+        }
+        await this.usersRepository.delete(id);
     }
 };
 exports.UsersService = UsersService;

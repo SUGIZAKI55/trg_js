@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
@@ -12,23 +12,35 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ) {}
 
-  // ★修正: ユーザーを探すときに「会社情報」も一緒に持ってくる
+  /**
+   * ユーザー名からユーザーを検索（ログイン用）
+   */
   async findOneByUsername(username: string): Promise<User | undefined> {
     return this.usersRepository.findOne({ 
       where: { username },
-      relations: ['company'] // ← 重要！これでログイン時に会社IDがわかります
+      relations: ['company'] 
     });
   }
 
-  // ★修正: リクエストした人(currentUser)によって返すデータを変える
+  /**
+   * ユーザー一覧の取得（権限による制御）
+   */
   async findAll(currentUser: any): Promise<User[]> {
-    if (currentUser.role === 'MASTER') {
-      // マスターなら全員表示（会社、部署、課の情報もセットで）
+    // デバッグログ
+    console.log('--- UserList Access Debug ---');
+    console.log('Current User:', currentUser);
+
+    // ロールを大文字に統一して判定（判定漏れ防止）
+    const role = currentUser.role ? String(currentUser.role).toUpperCase() : '';
+    console.log('Normalized Role:', role);
+
+    if (role === 'MASTER') {
+      // MASTERは全データを取得
       return this.usersRepository.find({
         relations: ['company', 'department', 'section'],
       });
     } else {
-      // それ以外なら「自分の会社ID」と一致するユーザーだけ表示
+      // それ以外は自社データのみ
       return this.usersRepository.find({
         where: { 
           company: { id: currentUser.companyId } 
@@ -38,6 +50,9 @@ export class UsersService {
     }
   }
 
+  /**
+   * IDからユーザーを一件取得
+   */
   async findOne(id: number): Promise<User | undefined> {
     return this.usersRepository.findOne({ 
       where: { id },
@@ -45,16 +60,34 @@ export class UsersService {
     });
   }
 
+  /**
+   * 新規ユーザー作成
+   * Roleの正規化（大文字統一）とパスワードハッシュ化を行う
+   */
   async create(createUserDto: CreateUserDto): Promise<User> {
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(createUserDto.password || 'password123', salt);
     
-    // ※会社IDなどがDTOに含まれている場合の処理が必要ですが、
-    // まずは基本的な作成処理として記述します
+    // ★ここが重要：role を大文字に変換。未指定なら 'USER'
+    const normalizedRole = createUserDto.role ? createUserDto.role.toUpperCase() : 'USER';
+    
     const newUser = this.usersRepository.create({
       ...createUserDto,
+      role: normalizedRole, // 正規化した値を使用
       password: hashedPassword,
     });
+    
     return this.usersRepository.save(newUser);
+  }
+
+  /**
+   * ユーザー削除
+   */
+  async remove(id: number): Promise<void> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`ID ${id} のユーザーは見つかりません。`);
+    }
+    await this.usersRepository.delete(id);
   }
 }

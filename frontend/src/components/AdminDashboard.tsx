@@ -5,7 +5,11 @@ import { useNavigate } from 'react-router-dom';
 const AdminDashboard: React.FC = () => {
   const { auth, logout } = useAuth();
   const navigate = useNavigate();
-  const isMaster = auth?.role === 'master';
+
+  // ★判定を強化：大文字小文字に関わらず 'master' なら true にする
+  const userRole = auth?.role ? String(auth.role).toUpperCase() : '';
+  const isMaster = userRole === 'MASTER';
+  
   const [showPermissions, setShowPermissions] = useState(false);
 
   return (
@@ -20,6 +24,30 @@ const AdminDashboard: React.FC = () => {
         </p>
       </div>
 
+      {/* ★ MASTER専用セクション（判定をisMasterに変更） */}
+      {isMaster && (
+        <div className="card" style={{ borderColor: '#e67e22', borderLeftWidth: '5px', marginBottom: '2rem' }}>
+          <div className="card-header" style={{ color: '#e67e22', fontWeight: 'bold', borderBottom: '1px solid #444' }}>
+            🏢 システム管理 (MASTER専用)
+          </div>
+          <div className="card-body">
+            <div className="dashboard-grid">
+              <div className="dashboard-tile" 
+                   style={{ border: '2px solid #e67e22' }}
+                   onClick={() => navigate('/register_company')}>
+                <span className="tile-icon">🏢</span><span>企業・管理者登録</span>
+              </div>
+              <div className="dashboard-tile" onClick={() => navigate('/master/create_master')}>
+                <span className="tile-icon">🔑</span><span>マスター作成</span>
+              </div>
+              <div className="dashboard-tile" onClick={() => navigate('/admin/bulk')}>
+                <span className="tile-icon">📥</span><span>データ一括登録</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ユーザー管理 */}
       <div className="card">
         <div className="card-header">👥 ユーザー管理</div>
@@ -31,24 +59,11 @@ const AdminDashboard: React.FC = () => {
             <div className="dashboard-tile" onClick={() => navigate('/users')}>
               <span className="tile-icon">📋</span><span>ユーザー一覧</span>
             </div>
-            {isMaster && (
-              <>
-                <div className="dashboard-tile" onClick={() => navigate('/admin/bulk')}>
-                  <span className="tile-icon">📥</span><span>一括登録</span>
-                </div>
-                <div className="dashboard-tile" onClick={() => navigate('/register_company')}>
-                  <span className="tile-icon">🏢</span><span>企業・管理者</span>
-                </div>
-                <div className="dashboard-tile" onClick={() => navigate('/master/create_master')}>
-                  <span className="tile-icon">🔑</span><span>マスター作成</span>
-                </div>
-              </>
-            )}
           </div>
         </div>
       </div>
 
-      {/* クイズ管理 */}
+      {/* クイズ・成績管理 */}
       <div className="card">
         <div className="card-header">📚 クイズ・成績管理</div>
         <div className="card-body">
@@ -66,7 +81,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* システム */}
+      {/* システム・その他 */}
       <div className="card">
         <div className="card-header">⚙️ システム・その他</div>
         <div className="card-body">
@@ -87,30 +102,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* モーダル */}
-      {showPermissions && (
-        <div className="modal-overlay">
-          <div className="modal-container">
-            <div className="modal-header">
-              <h3>権限別 機能早見表</h3>
-              <button className="btn-secondary btn-sm" onClick={() => setShowPermissions(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <table className="table">
-                <thead><tr><th>機能</th><th>マスター</th><th>Admin</th><th>一般</th></tr></thead>
-                <tbody>
-                  <tr><td>ユーザー作成</td><td>⭕️</td><td>🔺自社のみ</td><td>❌</td></tr>
-                  <tr><td>一括登録</td><td>⭕️</td><td>🔺ユーザーのみ</td><td>❌</td></tr>
-                  <tr><td>企業管理</td><td>⭕️</td><td>❌</td><td>❌</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowPermissions(false)}>閉じる</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* モーダル等は省略（既存のものを維持してください） */}
     </div>
   );
 };

@@ -8,7 +8,10 @@ export declare class User {
     password: string;
     role: string;
     company: Company;
+    companyId: number;
     department: Department;
+    departmentId: number;
     section: Section;
+    sectionId: number;
     learningLogs: LearningLog[];
 }

@@ -8,4 +8,5 @@ export declare class UsersService {
     findAll(currentUser: any): Promise<User[]>;
     findOne(id: number): Promise<User | undefined>;
     create(createUserDto: CreateUserDto): Promise<User>;
+    remove(id: number): Promise<void>;
 }

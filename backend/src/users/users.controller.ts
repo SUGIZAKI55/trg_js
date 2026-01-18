@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -7,11 +7,10 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ダッシュボード用データ（前回追加したもの）
+  // ダッシュボード用データ
   @UseGuards(JwtAuthGuard)
   @Get('dashboard_data')
   getDashboardData(@Request() req) {
-    // 簡易的なダミーデータを返します（後で本格実装可）
     return {
       username: req.user.username,
       review_count: 5,
@@ -28,16 +27,24 @@ export class UsersController {
     return this.usersService.create(createUserDto);
   }
 
-  // ★修正: ユーザー一覧取得時に、誰がアクセスしたか(req.user)を渡す
+  // ユーザー一覧取得
   @UseGuards(JwtAuthGuard)
   @Get()
   findAll(@Request() req) {
-    // req.user には companyId や role が入っています
     return this.usersService.findAll(req.user);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(+id);
+  }
+
+  // ★追加：ユーザー削除用エンドポイント
+  // フロントエンドからの DELETE http://localhost:3000/api/users/:id を受け取ります
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    // URLの末尾にあるID（文字列）を数値に変換してServiceに渡します
+    return this.usersService.remove(+id);
   }
 }

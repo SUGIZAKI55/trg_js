@@ -35,25 +35,40 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "role", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => company_entity_1.Company, (company) => company.users, { nullable: true }),
+    (0, typeorm_1.ManyToOne)(() => company_entity_1.Company, (company) => company.users, {
+        nullable: false,
+        onDelete: 'CASCADE'
+    }),
     (0, typeorm_1.JoinColumn)({ name: 'company_id' }),
     __metadata("design:type", company_entity_1.Company)
 ], User.prototype, "company", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'company_id' }),
+    __metadata("design:type", Number)
+], User.prototype, "companyId", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => department_entity_1.Department, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'department_id' }),
     __metadata("design:type", department_entity_1.Department)
 ], User.prototype, "department", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'department_id', nullable: true }),
+    __metadata("design:type", Number)
+], User.prototype, "departmentId", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => section_entity_1.Section, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'section_id' }),
     __metadata("design:type", section_entity_1.Section)
 ], User.prototype, "section", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'section_id', nullable: true }),
+    __metadata("design:type", Number)
+], User.prototype, "sectionId", void 0);
+__decorate([
     (0, typeorm_1.OneToMany)(() => learning_log_entity_1.LearningLog, (log) => log.user),
     __metadata("design:type", Array)
 ], User.prototype, "learningLogs", void 0);
 exports.User = User = __decorate([
-    (0, typeorm_1.Entity)()
+    (0, typeorm_1.Entity)('user')
 ], User);
 //# sourceMappingURL=user.entity.js.map
