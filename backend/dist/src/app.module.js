@@ -15,6 +15,7 @@ const auth_module_1 = require("./auth/auth.module");
 const users_module_1 = require("./users/users.module");
 const companies_module_1 = require("./companies/companies.module");
 const questions_module_1 = require("./questions/questions.module");
+const learning_logs_module_1 = require("./learning-logs/learning-logs.module");
 const user_entity_1 = require("./entities/user.entity");
 const company_entity_1 = require("./entities/company.entity");
 const department_entity_1 = require("./entities/department.entity");
@@ -46,6 +47,7 @@ exports.AppModule = AppModule = __decorate([
             users_module_1.UsersModule,
             companies_module_1.CompaniesModule,
             questions_module_1.QuestionsModule,
+            learning_logs_module_1.LearningLogsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

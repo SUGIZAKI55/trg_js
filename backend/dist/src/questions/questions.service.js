@@ -18,84 +18,76 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const question_entity_1 = require("../entities/question.entity");
 let QuestionsService = class QuestionsService {
-    constructor(questionRepo) {
-        this.questionRepo = questionRepo;
+    constructor(questionRepository) {
+        this.questionRepository = questionRepository;
     }
-    async create(createQuestionDto, user) {
-        const newQuestion = this.questionRepo.create({
-            ...createQuestionDto,
-            company: { id: user.companyId }
+    async getGenres(currentUser) {
+        const questions = await this.questionRepository.find({
+            where: [
+                { companyId: currentUser.companyId },
+                { companyId: (0, typeorm_2.IsNull)() }
+            ],
+            select: ['genre'],
         });
-        return this.questionRepo.save(newQuestion);
+        const genres = questions.map((q) => q.genre);
+        return Array.from(new Set(genres)).filter((g) => !!g);
     }
-    async createFromCsv(fileBuffer) {
-        const csvContent = fileBuffer.toString('utf-8');
-        const lines = csvContent.split(/\r?\n/);
-        const savedQuestions = [];
-        const clean = (text) => {
-            if (!text)
-                return '';
-            return text.trim().replace(/^"|"$/g, '');
-        };
-        for (const line of lines) {
-            if (!line.trim())
-                continue;
-            const cols = line.split(',');
-            if (cols.length < 8)
-                continue;
-            const genre = clean(cols[0]);
-            const type = clean(cols[1]).toUpperCase();
-            const title = clean(cols[2]);
-            const choices = `A:${clean(cols[3])}|B:${clean(cols[4])}|C:${clean(cols[5])}|D:${clean(cols[6])}`;
-            const answer = clean(cols[7]);
-            const newQuestion = this.questionRepo.create({
-                genre,
-                type,
-                title,
-                choices,
-                answer,
-                company: null
-            });
-            savedQuestions.push(await this.questionRepo.save(newQuestion));
-        }
-        return { count: savedQuestions.length, message: 'CSV import successful' };
+    async getQuizQuestions(genre, count, currentUser) {
+        return this.questionRepository.find({
+            where: [
+                { genre, companyId: currentUser.companyId },
+                { genre, companyId: (0, typeorm_2.IsNull)() }
+            ],
+            take: count,
+        });
     }
-    async findAll(user) {
-        if (user.role === 'MASTER') {
-            return this.questionRepo.find({ relations: ['company'] });
+    async findAll(currentUser) {
+        const role = currentUser.role?.toUpperCase();
+        if (role === 'MASTER') {
+            return this.questionRepository.find({ relations: ['company'] });
         }
-        else {
-            return this.questionRepo.find({
-                where: { company: { id: user.companyId } },
-                relations: ['company']
-            });
-        }
+        return this.questionRepository.find({
+            where: [
+                { companyId: currentUser.companyId },
+                { companyId: (0, typeorm_2.IsNull)() }
+            ],
+            relations: ['company'],
+        });
     }
     async findCommon() {
-        return this.questionRepo.find({
-            where: { company: null },
-        });
+        return this.questionRepository.find({ where: { companyId: (0, typeorm_2.IsNull)() } });
     }
-    async copyToCompany(questionId, user) {
-        const original = await this.questionRepo.findOne({
-            where: { id: questionId },
-            relations: ['company']
-        });
-        if (!original) {
-            throw new common_1.BadRequestException('問題が見つかりません');
+    async update(id, updateData, currentUser) {
+        const question = await this.questionRepository.findOne({ where: { id } });
+        if (!question)
+            throw new common_1.NotFoundException('問題が見つかりません');
+        const isMaster = currentUser.role?.toUpperCase() === 'MASTER';
+        if (!isMaster && question.companyId !== currentUser.companyId) {
+            throw new common_1.ForbiddenException('編集権限がありません');
         }
-        const copy = this.questionRepo.create({
-            genre: original.genre,
-            type: original.type,
-            title: original.title,
-            choices: original.choices,
-            answer: original.answer,
-            company: { id: user.companyId }
-        });
-        return this.questionRepo.save(copy);
+        const { id: _, company, ...validData } = updateData;
+        Object.assign(question, validData);
+        return this.questionRepository.save(question);
     }
-    async remove(id) {
-        return this.questionRepo.delete(id);
+    async copyToCompany(questionId, currentUser) {
+        const source = await this.questionRepository.findOne({ where: { id: questionId } });
+        if (!source)
+            throw new common_1.NotFoundException('コピー元が見つかりません');
+        const newQuestion = this.questionRepository.create({
+            ...source,
+            id: undefined,
+            companyId: currentUser.companyId,
+        });
+        return this.questionRepository.save(newQuestion);
+    }
+    async remove(id, currentUser) {
+        const question = await this.questionRepository.findOne({ where: { id } });
+        if (!question)
+            throw new common_1.NotFoundException('問題が見つかりません');
+        if (currentUser.role?.toUpperCase() !== 'MASTER' && question.companyId !== currentUser.companyId) {
+            throw new common_1.ForbiddenException('削除権限がありません');
+        }
+        await this.questionRepository.remove(question);
     }
 };
 exports.QuestionsService = QuestionsService;

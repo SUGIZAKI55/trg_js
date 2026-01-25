@@ -6,5 +6,6 @@ export declare class Question {
     title: string;
     choices: string;
     answer: string;
+    companyId: number;
     company: Company;
 }

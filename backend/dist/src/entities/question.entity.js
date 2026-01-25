@@ -40,6 +40,10 @@ __decorate([
     __metadata("design:type", String)
 ], Question.prototype, "answer", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'company_id', nullable: true }),
+    __metadata("design:type", Number)
+], Question.prototype, "companyId", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => company_entity_1.Company, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'company_id' }),
     __metadata("design:type", company_entity_1.Company)

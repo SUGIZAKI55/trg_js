@@ -1,47 +1,62 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-// Chart.js を使う場合は、main.tsxでグローバル登録が必要です
-// import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-// import { Doughnut } from 'react-chartjs-2';
-// ChartJS.register(ArcElement, Tooltip, Legend);
 
 const QuizResults: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // QuizQuestion画面から渡された結果データを取得
-  const { results, total } = location.state as { results: boolean[], total: number };
+  // QuizQuestionから渡されるデータの形を定義
+  // results: [{ questionId: number, isCorrect: boolean }]
+  const state = location.state as { score?: number, results?: { isCorrect: boolean }[] };
 
-  const correctCount = results.filter(Boolean).length;
-  const score = total > 0 ? ((correctCount / total) * 100).toFixed(0) : 0;
+  // スコアの取得（直接計算するか、渡されたスコアを使う）
+  const score = state?.score ?? (state?.results 
+    ? Math.round((state.results.filter(r => r.isCorrect).length / state.results.length) * 100) 
+    : 0);
 
-  // // ドーナツチャート用のデータ (Chart.jsを導入する場合)
-  // const chartData = {
-  //   labels: ['正解', '不正解'],
-  //   datasets: [{
-  //     data: [correctCount, total - correctCount],
-  //     backgroundColor: ['#28a745', '#dc3545'],
-  //   }],
-  // };
+  const correctCount = state?.results ? state.results.filter(r => r.isCorrect).length : 0;
+  const total = state?.results ? state.results.length : 0;
+
+  const isPass = score >= 70;
 
   return (
-    <div className="container mt-5 text-center" style={{ maxWidth: '600px' }}>
-      <div className="card">
-        <div className="card-header"><h1>クイズ結果</h1></div>
-        <div className="card-body">
-          <h2 className="display-4">{score} <span className="h5">点</span></h2>
-          <h3>{correctCount} / {total} 問 正解！</h3>
-          
-          {/* Chart.jsを導入した場合の表示エリア */}
-          {/* <div style={{ maxWidth: '250px', margin: '20px auto' }}>
-            <Doughnut data={chartData} />
-          </div> */}
+    <div className="container mt-5 text-center text-light" style={{ maxWidth: '600px' }}>
+      <div className="card bg-dark border-secondary shadow-lg overflow-hidden" style={{ borderRadius: '20px' }}>
+        <div className="card-header border-secondary py-4 bg-dark">
+          <h1 className="h3 text-secondary uppercase m-0">Quiz Result</h1>
+        </div>
+        
+        <div className="card-body p-5">
+          {/* スコア表示部分 */}
+          <div className="mb-4">
+            <div className="display-1 fw-bold text-primary mb-0">{score}</div>
+            <div className="text-muted fs-4">POINTS</div>
+          </div>
 
-          <div className="mt-4">
-            <button className="btn btn-primary mr-2" onClick={() => navigate('/genre')}>
+          <h2 className={`display-6 fw-bold mb-4 ${isPass ? 'text-success' : 'text-danger'}`}>
+            {isPass ? '🎉 合格！' : '😢 不合格'}
+          </h2>
+
+          {/* 正解数の内訳がある場合のみ表示 */}
+          {total > 0 && (
+            <div className="mb-4 text-secondary">
+              <span className="fs-4">{correctCount}</span> / <span className="fs-5">{total} 問正解</span>
+            </div>
+          )}
+
+          {/* プログレスバー */}
+          <div className="progress bg-dark border border-secondary mb-5" style={{ height: '12px', borderRadius: '10px' }}>
+            <div 
+              className={`progress-bar progress-bar-striped progress-bar-animated ${isPass ? 'bg-success' : 'bg-danger'}`} 
+              style={{ width: `${score}%` }}
+            />
+          </div>
+
+          <div className="d-grid gap-3">
+            <button className="btn btn-primary btn-lg fw-bold py-3 shadow-sm" onClick={() => navigate('/genre')}>
               もう一度挑戦する
             </button>
-            <button className="btn btn-secondary" onClick={() => navigate('/dashboard')}>
+            <button className="btn btn-outline-light py-2" onClick={() => navigate('/dashboard')}>
               ダッシュボードに戻る
             </button>
           </div>

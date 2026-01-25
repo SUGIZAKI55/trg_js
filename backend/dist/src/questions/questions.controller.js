@@ -14,67 +14,51 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuestionsController = void 0;
 const common_1 = require("@nestjs/common");
-const platform_express_1 = require("@nestjs/platform-express");
 const questions_service_1 = require("./questions.service");
-const create_question_dto_1 = require("./dto/create-question.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 let QuestionsController = class QuestionsController {
     constructor(questionsService) {
         this.questionsService = questionsService;
     }
-    create(createQuestionDto, req) {
-        return this.questionsService.create(createQuestionDto, req.user);
+    getGenres(req) {
+        return this.questionsService.getGenres(req.user);
     }
-    uploadCsv(file, req) {
-        if (req.user.role !== 'MASTER') {
-        }
-        return this.questionsService.createFromCsv(file.buffer);
-    }
-    findCommon() {
-        return this.questionsService.findCommon();
-    }
-    copyToCompany(id, req) {
-        return this.questionsService.copyToCompany(+id, req.user);
+    getQuizStart(genre, count, req) {
+        return this.questionsService.getQuizQuestions(genre, parseInt(count), req.user);
     }
     findAll(req) {
         return this.questionsService.findAll(req.user);
     }
-    remove(id) {
-        return this.questionsService.remove(+id);
+    findCommon() {
+        return this.questionsService.findCommon();
+    }
+    update(id, updateData, req) {
+        return this.questionsService.update(+id, updateData, req.user);
+    }
+    copy(id, req) {
+        return this.questionsService.copyToCompany(+id, req.user);
+    }
+    remove(id, req) {
+        return this.questionsService.remove(+id, req.user);
     }
 };
 exports.QuestionsController = QuestionsController;
 __decorate([
-    (0, common_1.Post)(),
-    __param(0, (0, common_1.Body)()),
-    __param(1, (0, common_1.Request)()),
+    (0, common_1.Get)('genres'),
+    __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_question_dto_1.CreateQuestionDto, Object]),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
-], QuestionsController.prototype, "create", null);
+], QuestionsController.prototype, "getGenres", null);
 __decorate([
-    (0, common_1.Post)('upload'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
-    __param(0, (0, common_1.UploadedFile)()),
-    __param(1, (0, common_1.Request)()),
+    (0, common_1.Get)('quiz-start'),
+    __param(0, (0, common_1.Query)('genre')),
+    __param(1, (0, common_1.Query)('count')),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", void 0)
-], QuestionsController.prototype, "uploadCsv", null);
-__decorate([
-    (0, common_1.Get)('common'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], QuestionsController.prototype, "findCommon", null);
-__decorate([
-    (0, common_1.Post)(':id/copy'),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Request)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
-    __metadata("design:returntype", void 0)
-], QuestionsController.prototype, "copyToCompany", null);
+], QuestionsController.prototype, "getQuizStart", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Request)()),
@@ -83,10 +67,34 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], QuestionsController.prototype, "findAll", null);
 __decorate([
+    (0, common_1.Get)('common'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], QuestionsController.prototype, "findCommon", null);
+__decorate([
+    (0, common_1.Patch)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], QuestionsController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)(':id/copy'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], QuestionsController.prototype, "copy", null);
+__decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], QuestionsController.prototype, "remove", null);
 exports.QuestionsController = QuestionsController = __decorate([

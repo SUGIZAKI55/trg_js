@@ -1,16 +1,13 @@
 import { Repository } from 'typeorm';
 import { Question } from '../entities/question.entity';
-import { CreateQuestionDto } from './dto/create-question.dto';
 export declare class QuestionsService {
-    private questionRepo;
-    constructor(questionRepo: Repository<Question>);
-    create(createQuestionDto: CreateQuestionDto, user: any): Promise<Question>;
-    createFromCsv(fileBuffer: Buffer): Promise<{
-        count: number;
-        message: string;
-    }>;
-    findAll(user: any): Promise<Question[]>;
+    private readonly questionRepository;
+    constructor(questionRepository: Repository<Question>);
+    getGenres(currentUser: any): Promise<string[]>;
+    getQuizQuestions(genre: string, count: number, currentUser: any): Promise<Question[]>;
+    findAll(currentUser: any): Promise<Question[]>;
     findCommon(): Promise<Question[]>;
-    copyToCompany(questionId: number, user: any): Promise<Question>;
-    remove(id: number): Promise<import("typeorm").DeleteResult>;
+    update(id: number, updateData: any, currentUser: any): Promise<Question>;
+    copyToCompany(questionId: number, currentUser: any): Promise<Question>;
+    remove(id: number, currentUser: any): Promise<void>;
 }

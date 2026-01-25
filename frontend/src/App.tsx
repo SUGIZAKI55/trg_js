@@ -6,7 +6,6 @@ import AdminDashboard from './components/AdminDashboard';
 import UserList from './components/UserList';
 import RegisterCompany from './components/RegisterCompany'; 
 import QuestionManager from './components/QuestionManager'; 
-import TestResults from './components/TestResults'; 
 import GenreSelect from './components/GenreSelect';
 import QuizQuestion from './components/QuizQuestion';
 import QuizResults from './components/QuizResults';
@@ -19,7 +18,8 @@ import MyAnalysis from './components/MyAnalysis';
 import LearnerAnalysis from './components/LearnerAnalysis';
 import BulkRegister from './components/BulkRegister'; 
 
-// ★追加: ナビゲーションバーをインポート
+// ★追加: 新しい成績管理画面をインポート
+import LearningView from './components/LearningView'; 
 import Navbar from './components/Navbar';
 
 import { useAuth } from './contexts/AuthContext';
@@ -39,11 +39,13 @@ function App() {
   
   return (
     <>
-      {/* ★追加: 常に画面上部に表示されるナビゲーションバー */}
       <Navbar />
 
-      {/* コンテンツエリア (既存のスタイルを維持) */}
-      <div style={{ width: '80%', margin: '0 auto', paddingTop: '2rem' }}>
+      {/* 修正箇所: style={{ width: '80%'... }} を削除。
+        CSSで定義した .container-main を使用することで、
+        最大幅 1200px での「左右中央寄せ」が自動適用されます。
+      */}
+      <main className="container-main">
         <Routes>
           {/* --- ログイン・新規登録ルート --- */}
           <Route path="/login" element={auth ? <Navigate to="/" /> : <Login />} />
@@ -66,10 +68,11 @@ function App() {
           {/* Master権限判定 */}
           <Route path="/register_company" element={isMaster ? <RegisterCompany /> : <Navigate to="/login" />} />
           
-          {/* QuestionManagerはこのルート(/q_list)で使われているようですね */}
           <Route path="/q_list" element={isAdminOrMaster ? <QuestionManager /> : <Navigate to="/login" />} />
           
-          <Route path="/view" element={isAdminOrMaster ? <TestResults /> : <Navigate to="/login" />} />
+          {/* ★修正: 旧 TestResults から LearningView に差し替え */}
+          <Route path="/view" element={isAdminOrMaster ? <LearningView /> : <Navigate to="/login" />} />
+          
           <Route path="/register_staff" element={isAdminOrMaster ? <RegisterStaff /> : <Navigate to="/login" />} />
           <Route path="/create_question" element={isAdminOrMaster ? <CreateQuestion /> : <Navigate to="/login" />} />
           <Route path="/admin/logs" element={isAdminOrMaster ? <LogViewer /> : <Navigate to="/login" />} />
@@ -78,7 +81,6 @@ function App() {
           <Route path="/admin/bulk" element={isAdminOrMaster ? <BulkRegister /> : <Navigate to="/login" />} />
 
           {/* --- デフォルトルート --- */}
-          {/* ここで管理者なら /admin へ、一般なら /dashboard へ振り分け */}
           <Route
             path="*"
             element={
@@ -90,7 +92,7 @@ function App() {
             }
           />
         </Routes>
-      </div>
+      </main>
     </>
   );
 }

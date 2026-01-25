@@ -11,9 +11,8 @@ export class LearningLog {
   learned_at: Date;
 
   @Column()
-  is_correct: boolean;
+  is_correct: boolean; // 点数ではなく「正解したか」を保存
 
-  // ★これを追加（Userとのつながり）
   @ManyToOne(() => User, (user) => user.learningLogs)
   @JoinColumn({ name: 'user_id' })
   user: User;

@@ -1,7 +1,5 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Delete, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Controller, Get, Patch, Post, Param, Body, UseGuards, Request, Delete, Query } from '@nestjs/common';
 import { QuestionsService } from './questions.service';
-import { CreateQuestionDto } from './dto/create-question.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('api/questions')
@@ -9,43 +7,40 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
 
-  // 通常作成
-  @Post()
-  create(@Body() createQuestionDto: CreateQuestionDto, @Request() req) {
-    return this.questionsService.create(createQuestionDto, req.user);
+  // ★追加: ジャンル一覧を取得 (ユーザーがアクセス可能な全問題から抽出)
+  @Get('genres')
+  getGenres(@Request() req) {
+    return this.questionsService.getGenres(req.user);
   }
 
-  // ★追加: CSVアップロード (キー名は 'file' で送信)
-  @Post('upload')
-  @UseInterceptors(FileInterceptor('file')) // ファイルを受け取る魔法
-  uploadCsv(@UploadedFile() file: Express.Multer.File, @Request() req) {
-    // マスター以外は禁止するロジックを入れても良い
-    if (req.user.role !== 'MASTER') {
-       // 必要ならエラーを返す処理など
-    }
-    return this.questionsService.createFromCsv(file.buffer);
+  // ★追加: クイズ開始用の問題を抽出
+  @Get('quiz-start')
+  getQuizStart(@Query('genre') genre: string, @Query('count') count: string, @Request() req) {
+    return this.questionsService.getQuizQuestions(genre, parseInt(count), req.user);
   }
 
-  // ★追加: 共通問題(ライブラリ)の取得
-  @Get('common')
-  findCommon() {
-    return this.questionsService.findCommon();
-  }
-
-  // ★追加: コピー機能
-  @Post(':id/copy')
-  copyToCompany(@Param('id') id: string, @Request() req) {
-    return this.questionsService.copyToCompany(+id, req.user);
-  }
-
-  // 通常の一覧取得 (自社の問題)
   @Get()
   findAll(@Request() req) {
     return this.questionsService.findAll(req.user);
   }
 
+  @Get('common')
+  findCommon() {
+    return this.questionsService.findCommon();
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateData: any, @Request() req) {
+    return this.questionsService.update(+id, updateData, req.user);
+  }
+
+  @Post(':id/copy')
+  copy(@Param('id') id: string, @Request() req) {
+    return this.questionsService.copyToCompany(+id, req.user);
+  }
+
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.questionsService.remove(+id);
+  remove(@Param('id') id: string, @Request() req) {
+    return this.questionsService.remove(+id, req.user);
   }
 }
