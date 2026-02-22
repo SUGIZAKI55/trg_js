@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { usersApi } from '../services/api';
 
 const Signup: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -19,7 +20,7 @@ const Signup: React.FC = () => {
     }
 
     try {
-      await axios.post('/api/auth/signup', { username, password });
+      await usersApi.create({ username, password });
       
       // 登録成功したら、ログイン画面にメッセージ付きで移動
       navigate('/login', { 

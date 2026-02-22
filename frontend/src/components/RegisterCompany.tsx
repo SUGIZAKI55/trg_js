@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { companiesApi } from '../services/api';
 
 interface Company {
   id: number;
@@ -20,8 +20,7 @@ const RegisterCompany: React.FC = () => {
 
   const fetchCompanies = async () => {
     try {
-      // APIからデータを取得
-      const res = await axios.get('http://localhost:3000/api/companies');
+      const res = await companiesApi.getAll();
       setCompanies(res.data);
     } catch (error) {
       console.error(error);
@@ -33,11 +32,10 @@ const RegisterCompany: React.FC = () => {
     if (!companyName) return;
 
     try {
-      // 会社登録APIを叩く
-      await axios.post('http://localhost:3000/api/companies', { name: companyName });
+      await companiesApi.create(companyName);
       setMessage('会社を登録しました！');
       setCompanyName('');
-      fetchCompanies(); // リストを更新
+      fetchCompanies();
     } catch (error) {
       console.error(error);
       setMessage('登録に失敗しました。');

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { usersApi } from '../services/api';
 
 interface User {
   id: number;
@@ -18,9 +18,7 @@ const UserList: React.FC = () => {
   // ユーザー一覧を取得する関数
   const fetchUsers = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/api/users', {
-        headers: { Authorization: `Bearer ${auth?.token}` },
-      });
+      const res = await usersApi.getAll();
       setUsers(res.data);
     } catch (err) {
       console.error(err);
@@ -39,9 +37,7 @@ const UserList: React.FC = () => {
     if (!window.confirm(`ユーザー「${username}」を削除してもよろしいですか？`)) return;
 
     try {
-      await axios.delete(`http://localhost:3000/api/users/${id}`, {
-        headers: { Authorization: `Bearer ${auth?.token}` },
-      });
+      await usersApi.delete(id);
       alert('削除に成功しました');
       fetchUsers();
     } catch (err) {

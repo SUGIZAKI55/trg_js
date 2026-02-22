@@ -10,7 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CompaniesModule } from './companies/companies.module';
 import { QuestionsModule } from './questions/questions.module';
-import { LearningLogsModule } from './learning-logs/learning-logs.module'; // ★追加
+import { LearningLogsModule } from './learning-logs/learning-logs.module';
 
 // データベースの設計図（Entities）
 import { User } from './entities/user.entity';
@@ -27,22 +27,22 @@ import { LearningLog } from './entities/learning-log.entity';
       type: 'sqlite',
       database: 'sugizaki_v2.db',
       entities: [
-        User, 
-        Company, 
-        Department, 
-        Section, 
-        Course, 
-        Question, 
+        User,
+        Company,
+        Department,
+        Section,
+        Course,
+        Question,
         LearningLog
       ],
       // 開発環境では true にしておくと、Entityの変更がDBに自動反映されます
-      synchronize: true, 
+      synchronize: true,
     }),
     AuthModule,
     UsersModule,
     CompaniesModule,
     QuestionsModule,
-    LearningLogsModule, // ★モジュール一覧に追加
+    LearningLogsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { questionsApi } from '../services/api';
 
 const GenreSelect: React.FC = () => {
   const [genres, setGenres] = useState<string[]>([]);
@@ -13,10 +13,7 @@ const GenreSelect: React.FC = () => {
   useEffect(() => {
     const fetchGenres = async () => {
       try {
-        // エンドポイントを /api/questions/genres に修正
-        const res = await axios.get('http://localhost:3000/api/questions/genres', { 
-          headers: { Authorization: `Bearer ${auth?.token}` } 
-        });
+        const res = await questionsApi.getGenres();
         setGenres(res.data);
         if (res.data.length > 0) setSelectedGenre(res.data[0]);
       } catch (err) {
@@ -29,22 +26,18 @@ const GenreSelect: React.FC = () => {
   const handleStart = async () => {
     if (!selectedGenre) return alert("ジャンルを選択してください");
     try {
-      // 受講用の問題をAPIから取得
-      const res = await axios.get('http://localhost:3000/api/questions/quiz-start', {
-        params: { genre: selectedGenre, count: questionCount },
-        headers: { Authorization: `Bearer ${auth?.token}` },
-      });
-      
+      const res = await questionsApi.getQuiz(selectedGenre, questionCount);
+
       if (res.data.length === 0) {
         alert("該当するジャンルの問題がありません");
         return;
       }
 
-      navigate('/question', { 
-        state: { 
-          questions: res.data, 
-          session_id: Date.now().toString() 
-        } 
+      navigate('/question', {
+        state: {
+          questions: res.data,
+          session_id: Date.now().toString()
+        }
       });
     } catch (err) {
       alert("クイズの開始に失敗しました");

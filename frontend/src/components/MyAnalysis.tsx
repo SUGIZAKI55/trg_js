@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { userApi } from '../services/api';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, RadialLinearScale, Filler, Tooltip, Legend } from 'chart.js';
 import { Radar, Bar } from 'react-chartjs-2';
 
@@ -16,7 +16,7 @@ const MyAnalysis: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get('/api/user/analysis_data', { headers: { Authorization: `Bearer ${auth?.token}` } });
+        const res = await userApi.getAnalysis();
         setLogs(res.data);
       } finally { setLoading(false); }
     };
