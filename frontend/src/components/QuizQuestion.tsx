@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { learningLogsApi } from '../services/api';
 
 const QuizQuestion: React.FC = () => {
   const { state } = useLocation();
@@ -59,17 +59,12 @@ const QuizQuestion: React.FC = () => {
   const submitResults = async (results: {questionId: number, isCorrect: boolean}[]) => {
     setLoading(true);
     try {
-      // ★ エンティティの構造（results配列）に合わせて送信
-      await axios.post('http://localhost:3000/api/learning-logs', { 
-        results: results 
-      }, {
-        headers: { Authorization: `Bearer ${auth?.token}` }
-      });
-      
+      await learningLogsApi.create(results);
+
       // 結果表示用のスコア計算
       const correctCount = results.filter(r => r.isCorrect).length;
       const finalScore = Math.round((correctCount / questions.length) * 100);
-      
+
       navigate('/kekka', { state: { score: finalScore } });
     } catch (err) {
       console.error(err);

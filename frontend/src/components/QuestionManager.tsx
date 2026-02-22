@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { questionsApi } from '../services/api';
 
 interface Question {
   id: number;
@@ -35,18 +35,14 @@ const QuestionManager: React.FC = () => {
 
   const fetchMyQuestions = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/api/questions', {
-        headers: { Authorization: `Bearer ${auth?.token}` },
-      });
+      const res = await questionsApi.getAll();
       setMyQuestions(res.data);
     } catch (err) { console.error(err); }
   };
 
   const fetchCommonQuestions = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/api/questions/common', {
-        headers: { Authorization: `Bearer ${auth?.token}` },
-      });
+      const res = await questionsApi.getCommon();
       setCommonQuestions(res.data);
     } catch (err) { console.error(err); }
   };
@@ -61,9 +57,7 @@ const QuestionManager: React.FC = () => {
   const handleUpdate = async () => {
     if (!editingId) return;
     try {
-      await axios.patch(`http://localhost:3000/api/questions/${editingId}`, editForm, {
-        headers: { Authorization: `Bearer ${auth?.token}` },
-      });
+      await questionsApi.update(editingId, editForm);
       alert('問題を更新しました ✅');
       setEditingId(null);
       fetchMyQuestions();
@@ -82,9 +76,7 @@ const QuestionManager: React.FC = () => {
     formData.append('file', file);
     try {
       setLoading(true);
-      const res = await axios.post('http://localhost:3000/api/questions/upload', formData, {
-        headers: { Authorization: `Bearer ${auth?.token}`, 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await questionsApi.upload(formData);
       alert(`${res.data.count}件登録しました`);
       fetchCommonQuestions();
       setFile(null);
@@ -96,9 +88,7 @@ const QuestionManager: React.FC = () => {
   const handleCopy = async (questionId: number) => {
     if (!window.confirm('自社リストに取り込みますか？')) return;
     try {
-      await axios.post(`http://localhost:3000/api/questions/${questionId}/copy`, {}, {
-        headers: { Authorization: `Bearer ${auth?.token}` },
-      });
+      await questionsApi.copy(questionId);
       alert('取り込み完了！');
       fetchMyQuestions();
     } catch (error) { alert('コピー失敗'); }
@@ -107,9 +97,7 @@ const QuestionManager: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (!window.confirm('この問題を削除しますか？')) return;
     try {
-      await axios.delete(`http://localhost:3000/api/questions/${id}`, {
-        headers: { Authorization: `Bearer ${auth?.token}` },
-      });
+      await questionsApi.delete(id);
       fetchMyQuestions();
       fetchCommonQuestions();
     } catch (error) { alert('削除失敗'); }

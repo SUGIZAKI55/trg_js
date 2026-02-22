@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { userApi } from '../services/api';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -40,9 +40,7 @@ const LearnerAnalysis: React.FC = () => {
   useEffect(() => {
     const fetchAnalysisData = async () => {
       try {
-        const res = await axios.get('/api/user/analysis_data', {
-          headers: { Authorization: `Bearer ${auth?.token}` },
-        });
+        const res = await userApi.getAnalysis();
         setLogs(res.data);
       } catch (err) {
         console.error("分析データの取得に失敗:", err);

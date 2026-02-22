@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { questionsApi } from '../services/api';
 
 const CreateQuestion: React.FC = () => {
   const { auth } = useAuth();
@@ -14,17 +14,22 @@ const CreateQuestion: React.FC = () => {
   
   useEffect(() => {
     if (isEditing && auth?.token) {
-      axios.get(`/api/questions/${questionId}`, { headers: { Authorization: `Bearer ${auth.token}` } })
-        .then(res => setFormData({ ...res.data, choices: res.data.choices.split(':'), answer: res.data.answer.split(':') }));
+      questionsApi.getAll()
+        .then(res => {
+          const question = res.data.find((q: any) => q.id === questionId);
+          if (question) {
+            setFormData({ ...question, choices: question.choices.split(':'), answer: question.answer.split(':') });
+          }
+        });
     }
-  }, [isEditing, auth]);
+  }, [isEditing, auth, questionId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = { ...formData, choices: formData.choices.join(':'), answer: formData.answer.join(':') };
     try {
-      if (isEditing) await axios.put(`/api/questions/${questionId}`, payload, { headers: { Authorization: `Bearer ${auth?.token}` } });
-      else await axios.post('/api/questions', payload, { headers: { Authorization: `Bearer ${auth?.token}` } });
+      if (isEditing) await questionsApi.update(questionId, payload);
+      else await questionsApi.create(payload);
       navigate('/q_list');
     } catch { alert("エラー"); }
   };

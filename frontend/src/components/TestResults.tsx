@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
+import { adminApi } from '../services/api';
 
 interface ResultData {
   username: string;
@@ -26,13 +26,11 @@ const TestResults: React.FC = () => {
   useEffect(() => {
     const fetchAllResults = async () => {
       try {
-        const res = await axios.get<ResultData[]>('/api/admin/results', {
-          headers: { Authorization: `Bearer ${auth?.token}` },
-        });
+        const res = await adminApi.getResults();
 
         const stats: Record<string, UserStats> = {};
-        
-        res.data.forEach((r) => {
+
+        res.data.forEach((r: ResultData) => {
           if (!stats[r.username]) {
             stats[r.username] = { total: 0, correct: 0, company: r.company_name || 'N/A' };
           }
