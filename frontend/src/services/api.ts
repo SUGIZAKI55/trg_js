@@ -59,14 +59,23 @@ export const questionsApi = {
 // Learning Logs API
 export const learningLogsApi = {
   getAll: () => apiClient.get('/learning-logs'),
+  getAnalysisData: () => apiClient.get('/learning-logs/analysis_data'),
   create: (results: any[]) => apiClient.post('/learning-logs', results),
 };
 
 // User Results & Analysis API
 export const userApi = {
   getResults: () => apiClient.get('/user/my_results'),
-  getAnalysis: () => apiClient.get('/user/analysis_data'),
+  getAnalysis: () => apiClient.get('/users/analysis_data'),
   getDashboardData: () => apiClient.get('/users/dashboard_data'),
+
+  // 学習パターン診断API
+  getPatternDiagnosis: (userId: number) =>
+    apiClient.get(`/users/${userId}/pattern-diagnosis`),
+  runPatternDiagnosis: (userId: number) =>
+    apiClient.post(`/users/${userId}/pattern-diagnosis`),
+  forcePatternDiagnosis: (userId: number) =>
+    apiClient.patch(`/users/${userId}/pattern-diagnosis/force`),
 };
 
 // Admin API
