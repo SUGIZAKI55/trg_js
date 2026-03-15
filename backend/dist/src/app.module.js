@@ -16,6 +16,7 @@ const users_module_1 = require("./users/users.module");
 const companies_module_1 = require("./companies/companies.module");
 const questions_module_1 = require("./questions/questions.module");
 const learning_logs_module_1 = require("./learning-logs/learning-logs.module");
+const genres_module_1 = require("./genres/genres.module");
 const user_entity_1 = require("./entities/user.entity");
 const company_entity_1 = require("./entities/company.entity");
 const department_entity_1 = require("./entities/department.entity");
@@ -23,6 +24,7 @@ const section_entity_1 = require("./entities/section.entity");
 const course_entity_1 = require("./entities/course.entity");
 const question_entity_1 = require("./entities/question.entity");
 const learning_log_entity_1 = require("./entities/learning-log.entity");
+const genre_entity_1 = require("./entities/genre.entity");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -43,7 +45,8 @@ exports.AppModule = AppModule = __decorate([
                     section_entity_1.Section,
                     course_entity_1.Course,
                     question_entity_1.Question,
-                    learning_log_entity_1.LearningLog
+                    learning_log_entity_1.LearningLog,
+                    genre_entity_1.Genre
                 ],
                 synchronize: true,
             }),
@@ -52,6 +55,7 @@ exports.AppModule = AppModule = __decorate([
             companies_module_1.CompaniesModule,
             questions_module_1.QuestionsModule,
             learning_logs_module_1.LearningLogsModule,
+            genres_module_1.GenresModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

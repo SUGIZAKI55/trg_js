@@ -10,4 +10,10 @@ export declare class QuestionsService {
     update(id: number, updateData: any, currentUser: any): Promise<Question>;
     copyToCompany(questionId: number, currentUser: any): Promise<Question>;
     remove(id: number, currentUser: any): Promise<void>;
+    batchDelete(questionIds: number[], currentUser: any): Promise<{
+        deleted: number;
+        message: string;
+    }>;
+    exportCsv(genre?: string, type?: string, currentUser?: any): Promise<string>;
+    duplicate(questionId: number, currentUser: any, newTitle?: string): Promise<Question>;
 }

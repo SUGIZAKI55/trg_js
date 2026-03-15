@@ -38,8 +38,20 @@ let QuestionsController = class QuestionsController {
     copy(id, req) {
         return this.questionsService.copyToCompany(+id, req.user);
     }
+    duplicate(id, body, req) {
+        return this.questionsService.duplicate(+id, req.user, body?.title);
+    }
     remove(id, req) {
         return this.questionsService.remove(+id, req.user);
+    }
+    async exportCsv(genre, type, req, res) {
+        const csv = await this.questionsService.exportCsv(genre, type, req.user);
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="questions_${new Date().toISOString().split('T')[0]}.csv"`);
+        res.send(csv);
+    }
+    batchDelete(body, req) {
+        return this.questionsService.batchDelete(body.questionIds, req.user);
     }
 };
 exports.QuestionsController = QuestionsController;
@@ -90,6 +102,15 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], QuestionsController.prototype, "copy", null);
 __decorate([
+    (0, common_1.Post)(':id/duplicate'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], QuestionsController.prototype, "duplicate", null);
+__decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Request)()),
@@ -97,6 +118,24 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], QuestionsController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Get)('export/csv'),
+    __param(0, (0, common_1.Query)('genre')),
+    __param(1, (0, common_1.Query)('type')),
+    __param(2, (0, common_1.Request)()),
+    __param(3, (0, common_1.Response)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], QuestionsController.prototype, "exportCsv", null);
+__decorate([
+    (0, common_1.Post)('batch-delete'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], QuestionsController.prototype, "batchDelete", null);
 exports.QuestionsController = QuestionsController = __decorate([
     (0, common_1.Controller)('api/questions'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

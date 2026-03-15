@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { CompaniesModule } from './companies/companies.module';
 import { QuestionsModule } from './questions/questions.module';
 import { LearningLogsModule } from './learning-logs/learning-logs.module';
+import { GenresModule } from './genres/genres.module';
 
 // データベースの設計図（Entities）
 import { User } from './entities/user.entity';
@@ -20,6 +21,7 @@ import { Section } from './entities/section.entity';
 import { Course } from './entities/course.entity';
 import { Question } from './entities/question.entity';
 import { LearningLog } from './entities/learning-log.entity';
+import { Genre } from './entities/genre.entity';
 
 @Module({
   imports: [
@@ -37,7 +39,8 @@ import { LearningLog } from './entities/learning-log.entity';
         Section,
         Course,
         Question,
-        LearningLog
+        LearningLog,
+        Genre
       ],
       // 開発環境では true にしておくと、Entityの変更がDBに自動反映されます
       synchronize: true,
@@ -47,6 +50,7 @@ import { LearningLog } from './entities/learning-log.entity';
     CompaniesModule,
     QuestionsModule,
     LearningLogsModule,
+    GenresModule,
   ],
   controllers: [AppController],
   providers: [AppService],

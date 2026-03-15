@@ -14,4 +14,9 @@ export declare class User {
     section: Section;
     sectionId: number;
     learningLogs: LearningLog[];
+    patternType: string | null;
+    patternDiagnosedAt: Date | null;
+    patternScore: number | null;
+    genreConcentration: number | null;
+    growthRate: number | null;
 }
