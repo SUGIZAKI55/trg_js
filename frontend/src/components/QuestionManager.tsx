@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import QuestionEditModal from './QuestionEditModal';
 
 interface Question {
   id: number;
@@ -19,9 +20,18 @@ const QuestionManager: React.FC = () => {
   const [commonQuestions, setCommonQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // --- 編集モード用の状態 ---
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Question>>({});
+  // --- 検索・フィルタ・ソート用の状態 ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState('all');
+  const [selectedType, setSelectedType] = useState('all');
+  const [sortBy, setSortBy] = useState<'id' | 'genre' | 'type'>('id');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // --- モーダル編集用の状態 ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalQuestion, setModalQuestion] = useState<Question | null>(null);
 
   // CSV用
   const [file, setFile] = useState<File | null>(null);
@@ -39,7 +49,9 @@ const QuestionManager: React.FC = () => {
         headers: { Authorization: `Bearer ${auth?.token}` },
       });
       setMyQuestions(res.data);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchCommonQuestions = async () => {
@@ -48,28 +60,71 @@ const QuestionManager: React.FC = () => {
         headers: { Authorization: `Bearer ${auth?.token}` },
       });
       setCommonQuestions(res.data);
-    } catch (err) { console.error(err); }
-  };
-
-  // --- 編集開始 ---
-  const startEdit = (q: Question) => {
-    setEditingId(q.id);
-    setEditForm({ ...q });
-  };
-
-  // --- 編集保存 ---
-  const handleUpdate = async () => {
-    if (!editingId) return;
-    try {
-      await axios.patch(`http://localhost:3000/api/questions/${editingId}`, editForm, {
-        headers: { Authorization: `Bearer ${auth?.token}` },
-      });
-      alert('問題を更新しました ✅');
-      setEditingId(null);
-      fetchMyQuestions();
     } catch (err) {
-      alert('更新に失敗しました。バックエンドのEntity設定を確認してください。');
+      console.error(err);
     }
+  };
+
+  // --- 検索・フィルタ・ソート処理 ---
+  const filteredAndSortedQuestions = useMemo(() => {
+    let filtered = myQuestions.filter((q) => {
+      const matchesSearch =
+        searchTerm === '' ||
+        q.id.toString().includes(searchTerm) ||
+        q.title.toLowerCase().includes(searchTerm) ||
+        q.genre.toLowerCase().includes(searchTerm);
+
+      const matchesGenre = selectedGenre === 'all' || q.genre === selectedGenre;
+      const matchesType = selectedType === 'all' || q.type === selectedType;
+
+      return matchesSearch && matchesGenre && matchesType;
+    });
+
+    // ソート処理
+    filtered.sort((a, b) => {
+      let compareValue = 0;
+      if (sortBy === 'id') {
+        compareValue = a.id - b.id;
+      } else if (sortBy === 'genre') {
+        compareValue = a.genre.localeCompare(b.genre);
+      } else if (sortBy === 'type') {
+        compareValue = a.type.localeCompare(b.type);
+      }
+
+      return sortOrder === 'asc' ? compareValue : -compareValue;
+    });
+
+    return filtered;
+  }, [myQuestions, searchTerm, selectedGenre, selectedType, sortBy, sortOrder]);
+
+  // --- ページネーション処理 ---
+  const totalPages = Math.ceil(filteredAndSortedQuestions.length / itemsPerPage);
+  const startIdx = (currentPage - 1) * itemsPerPage;
+  const endIdx = startIdx + itemsPerPage;
+  const paginatedQuestions = filteredAndSortedQuestions.slice(startIdx, endIdx);
+
+  // --- ユニークなジャンル一覧を取得 ---
+  const uniqueGenres = useMemo(() => {
+    const genres = [...new Set(myQuestions.map((q) => q.genre))];
+    return genres.sort();
+  }, [myQuestions]);
+
+  // --- モーダルを開く ---
+  const openEditModal = (question: Question) => {
+    setModalQuestion(question);
+    setIsModalOpen(true);
+  };
+
+  // --- モーダルを閉じる ---
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setModalQuestion(null);
+  };
+
+  // --- 更新完了時の処理 ---
+  const handleUpdateSuccess = () => {
+    closeModal();
+    fetchMyQuestions();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,10 +142,13 @@ const QuestionManager: React.FC = () => {
       });
       alert(`${res.data.count}件登録しました`);
       fetchCommonQuestions();
+      fetchMyQuestions();
       setFile(null);
     } catch (error) {
       alert('アップロード失敗');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCopy = async (questionId: number) => {
@@ -101,7 +159,9 @@ const QuestionManager: React.FC = () => {
       });
       alert('取り込み完了！');
       fetchMyQuestions();
-    } catch (error) { alert('コピー失敗'); }
+    } catch (error) {
+      alert('コピー失敗');
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -112,7 +172,23 @@ const QuestionManager: React.FC = () => {
       });
       fetchMyQuestions();
       fetchCommonQuestions();
-    } catch (error) { alert('削除失敗'); }
+    } catch (error) {
+      alert('削除失敗');
+    }
+  };
+
+  const toggleSort = (field: 'id' | 'genre' | 'type') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const getSortIcon = (field: string) => {
+    if (sortBy !== field) return '⇅';
+    return sortOrder === 'asc' ? '↑' : '↓';
   };
 
   return (
@@ -125,8 +201,17 @@ const QuestionManager: React.FC = () => {
           <div className="card-body">
             <h5 className="text-warning">📂 ライブラリ一括登録 (マスター権限)</h5>
             <div className="d-flex gap-2 align-items-center mt-3">
-              <input type="file" className="form-control form-control-sm w-auto bg-dark text-white border-secondary" accept=".csv" onChange={handleFileChange} />
-              <button onClick={handleUploadCsv} disabled={loading} className="btn btn-primary btn-sm px-4">
+              <input
+                type="file"
+                className="form-control form-control-sm w-auto bg-dark text-white border-secondary"
+                accept=".csv"
+                onChange={handleFileChange}
+              />
+              <button
+                onClick={handleUploadCsv}
+                disabled={loading}
+                className="btn btn-primary btn-sm px-4"
+              >
                 {loading ? '送信中...' : 'アップロード'}
               </button>
             </div>
@@ -136,83 +221,213 @@ const QuestionManager: React.FC = () => {
 
       {/* タブ切り替え */}
       <div className="d-flex gap-2 mb-4">
-        <button onClick={() => setActiveTab('my')} className={`btn flex-grow-1 py-2 fw-bold ${activeTab === 'my' ? 'btn-primary' : 'btn-dark border-secondary text-secondary'}`}>
+        <button
+          onClick={() => setActiveTab('my')}
+          className={`btn flex-grow-1 py-2 fw-bold ${
+            activeTab === 'my' ? 'btn-primary' : 'btn-dark border-secondary text-secondary'
+          }`}
+        >
           🏢 自社の問題リスト
         </button>
-        <button onClick={() => setActiveTab('library')} className={`btn flex-grow-1 py-2 fw-bold ${activeTab === 'library' ? 'btn-primary' : 'btn-dark border-secondary text-secondary'}`}>
+        <button
+          onClick={() => setActiveTab('library')}
+          className={`btn flex-grow-1 py-2 fw-bold ${
+            activeTab === 'library' ? 'btn-primary' : 'btn-dark border-secondary text-secondary'
+          }`}
+        >
           📚 共通ライブラリから追加
         </button>
       </div>
 
       {activeTab === 'my' && (
-        <div className="card bg-dark text-light border-secondary shadow-lg">
-          <div className="table-responsive">
-            <table className="table table-dark table-hover mb-0">
-              <thead>
-                <tr className="border-secondary text-muted small uppercase">
-                  <th className="py-3" style={{ width: '60px' }}>ID</th>
-                  <th className="py-3" style={{ width: '160px' }}>属性</th>
-                  <th className="py-3">問題内容 / 回答設定</th>
-                  <th className="py-3" style={{ width: '140px' }}>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {myQuestions.map((q) => (
-                  <tr key={q.id} className="align-middle border-secondary">
-                    <td className="text-secondary">{q.id}</td>
-                    <td>
-                      {editingId === q.id ? (
-                        <>
-                          <input className="form-control form-control-sm mb-1 bg-secondary text-white border-0" value={editForm.genre} onChange={e => setEditForm({...editForm, genre: e.target.value})} placeholder="ジャンル" />
-                          <select className="form-select form-select-sm bg-secondary text-white border-0" value={editForm.type} onChange={e => setEditForm({...editForm, type: e.target.value})}>
-                            <option value="SINGLE">択一形式</option>
-                            <option value="MULTI">複数選択</option>
-                          </select>
-                        </>
-                      ) : (
-                        <div>
-                          <span className="badge bg-info text-dark mb-1">{q.genre}</span>
-                          <div className="small text-muted">{q.type === 'SINGLE' ? '択一' : '複数選択'}</div>
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {editingId === q.id ? (
-                        <div className="d-flex flex-column gap-1">
-                          <input className="form-control bg-secondary text-white border-0" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} placeholder="問題文を入力" />
-                          <input className="form-control form-control-sm bg-secondary text-white border-0" value={editForm.choices} onChange={e => setEditForm({...editForm, choices: e.target.value})} placeholder="選択肢 (例: A:はい|B:いいえ)" />
-                          <div className="input-group input-group-sm">
-                            <span className="input-group-text bg-primary text-white border-0 small">正解キー</span>
-                            <input className="form-control bg-secondary text-white border-0" value={editForm.answer} onChange={e => setEditForm({...editForm, answer: e.target.value.toUpperCase()})} placeholder="A または A,C" />
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="fw-bold mb-1">{q.title}</div>
-                          <div className="small text-secondary mb-1">{q.choices}</div>
-                          <div className="small"><span className="text-info">正解:</span> <span className="badge bg-outline-info border border-info text-info">{q.answer}</span></div>
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {editingId === q.id ? (
-                        <div className="d-flex gap-1">
-                          <button onClick={handleUpdate} className="btn btn-sm btn-success px-3">保存</button>
-                          <button onClick={() => setEditingId(null)} className="btn btn-sm btn-outline-light">取消</button>
-                        </div>
-                      ) : (
-                        <div className="d-flex gap-1">
-                          <button onClick={() => startEdit(q)} className="btn btn-sm btn-outline-primary">編集</button>
-                          <button onClick={() => handleDelete(q.id)} className="btn btn-sm btn-outline-danger">削除</button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          {/* 検索・フィルタバー */}
+          <div className="card bg-dark text-light border-secondary mb-4 p-3">
+            <div className="row g-2">
+              <div className="col-md-4">
+                <input
+                  type="text"
+                  className="form-control bg-secondary text-white border-secondary"
+                  placeholder="🔍 ID・問題文・ジャンルで検索"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+              <div className="col-md-3">
+                <select
+                  className="form-select bg-secondary text-white border-secondary"
+                  value={selectedGenre}
+                  onChange={(e) => {
+                    setSelectedGenre(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value="all">ジャンル: すべて</option>
+                  {uniqueGenres.map((genre) => (
+                    <option key={genre} value={genre}>
+                      {genre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-3">
+                <select
+                  className="form-select bg-secondary text-white border-secondary"
+                  value={selectedType}
+                  onChange={(e) => {
+                    setSelectedType(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value="all">タイプ: すべて</option>
+                  <option value="SINGLE">択一形式</option>
+                  <option value="MULTI">複数選択</option>
+                </select>
+              </div>
+              <div className="col-md-2">
+                <select
+                  className="form-select bg-secondary text-white border-secondary"
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={10}>10件表示</option>
+                  <option value={25}>25件表示</option>
+                  <option value={50}>50件表示</option>
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
+
+          {/* 検索結果情報 */}
+          <div className="alert alert-info mb-3" role="alert">
+            検索結果: <strong>{filteredAndSortedQuestions.length}件</strong>
+            {filteredAndSortedQuestions.length > 0 && (
+              <span className="ms-2 text-muted">
+                ({startIdx + 1}-{Math.min(endIdx, filteredAndSortedQuestions.length)}件目を表示)
+              </span>
+            )}
+          </div>
+
+          {/* テーブル */}
+          {paginatedQuestions.length > 0 ? (
+            <div className="card bg-dark text-light border-secondary shadow-lg mb-4">
+              <div className="table-responsive">
+                <table className="table table-dark table-hover mb-0">
+                  <thead>
+                    <tr className="border-secondary text-muted small">
+                      <th
+                        className="py-3 cursor-pointer"
+                        style={{ width: '60px', cursor: 'pointer' }}
+                        onClick={() => toggleSort('id')}
+                      >
+                        ID {getSortIcon('id')}
+                      </th>
+                      <th
+                        className="py-3 cursor-pointer"
+                        style={{ width: '160px', cursor: 'pointer' }}
+                        onClick={() => toggleSort('genre')}
+                      >
+                        ジャンル {getSortIcon('genre')}
+                      </th>
+                      <th className="py-3">問題文</th>
+                      <th style={{ width: '100px' }}>タイプ</th>
+                      <th style={{ width: '100px' }}>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedQuestions.map((q) => (
+                      <tr key={q.id} className="align-middle border-secondary">
+                        <td className="text-secondary small">{q.id}</td>
+                        <td>
+                          <span className="badge bg-info text-dark">{q.genre}</span>
+                        </td>
+                        <td className="text-truncate" title={q.title}>
+                          {q.title}
+                        </td>
+                        <td className="small">{q.type === 'SINGLE' ? '択一' : '複数'}</td>
+                        <td>
+                          <button
+                            onClick={() => openEditModal(q)}
+                            className="btn btn-sm btn-outline-primary me-1"
+                          >
+                            ✏️ 編集
+                          </button>
+                          <button
+                            onClick={() => handleDelete(q.id)}
+                            className="btn btn-sm btn-outline-danger"
+                          >
+                            🗑️ 削除
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="alert alert-warning" role="alert">
+              該当する問題がありません
+            </div>
+          )}
+
+          {/* ページネーション */}
+          {totalPages > 1 && (
+            <nav aria-label="Page navigation" className="d-flex justify-content-center">
+              <ul className="pagination pagination-sm">
+                <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                  <button
+                    className="page-link bg-dark text-light border-secondary"
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    ← 前へ
+                  </button>
+                </li>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <li
+                    key={page}
+                    className={`page-item ${currentPage === page ? 'active' : ''}`}
+                  >
+                    <button
+                      className={`page-link ${
+                        currentPage === page ? 'bg-primary border-primary' : 'bg-dark text-light border-secondary'
+                      }`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  </li>
+                ))}
+                <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                  <button
+                    className="page-link bg-dark text-light border-secondary"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    次へ →
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          )}
+
+          {/* モーダル */}
+          {isModalOpen && modalQuestion && (
+            <QuestionEditModal
+              question={modalQuestion}
+              onClose={closeModal}
+              onSuccess={handleUpdateSuccess}
+              token={auth?.token || ''}
+            />
+          )}
+        </>
       )}
 
       {activeTab === 'library' && (
@@ -220,17 +435,31 @@ const QuestionManager: React.FC = () => {
           <table className="table table-dark table-hover">
             <thead>
               <tr className="border-secondary text-muted small">
-                <th>ジャンル</th><th>問題文</th><th>正解</th><th>操作</th>
+                <th style={{ width: '120px' }}>ジャンル</th>
+                <th>問題文</th>
+                <th style={{ width: '100px' }}>正解</th>
+                <th style={{ width: '100px' }}>操作</th>
               </tr>
             </thead>
             <tbody>
               {commonQuestions.map((q) => (
                 <tr key={q.id} className="align-middle border-secondary">
-                  <td><span className="badge bg-secondary">{q.genre}</span></td>
-                  <td>{q.title}</td>
-                  <td><span className="text-info fw-bold">{q.answer}</span></td>
                   <td>
-                    <button onClick={() => handleCopy(q.id)} className="btn btn-sm btn-primary px-3">＋ 取り込む</button>
+                    <span className="badge bg-secondary">{q.genre}</span>
+                  </td>
+                  <td className="text-truncate" title={q.title}>
+                    {q.title}
+                  </td>
+                  <td>
+                    <span className="text-info fw-bold small">{q.answer}</span>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => handleCopy(q.id)}
+                      className="btn btn-sm btn-primary px-3"
+                    >
+                      ➕ 取り込む
+                    </button>
                   </td>
                 </tr>
               ))}
