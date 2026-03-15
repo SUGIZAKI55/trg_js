@@ -24,8 +24,12 @@ import { LearningLog } from './entities/learning-log.entity';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
-      type: 'sqlite',
-      database: 'sugizaki_v2.db',
+      type: 'postgres',
+      host: 'localhost',
+      port: 5432,
+      username: 'trg_user',
+      password: 'trg_password_123',
+      database: 'trg_js_db',
       entities: [
         User,
         Company,
