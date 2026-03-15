@@ -89,6 +89,70 @@ let QuestionsService = class QuestionsService {
         }
         await this.questionRepository.remove(question);
     }
+    async batchDelete(questionIds, currentUser) {
+        if (!questionIds || questionIds.length === 0) {
+            throw new Error('削除対象の問題IDが指定されていません');
+        }
+        const questions = await this.questionRepository.find({
+            where: { id: undefined },
+        });
+        const targetQuestions = await this.questionRepository
+            .createQueryBuilder('q')
+            .where('q.id IN (:...ids)', { ids: questionIds })
+            .getMany();
+        if (targetQuestions.length === 0) {
+            throw new common_1.NotFoundException('指定された問題が見つかりません');
+        }
+        const isMaster = currentUser.role?.toUpperCase() === 'MASTER';
+        for (const question of targetQuestions) {
+            if (!isMaster && question.companyId !== currentUser.companyId) {
+                throw new common_1.ForbiddenException('削除権限がない問題が含まれています');
+            }
+        }
+        const result = await this.questionRepository.remove(targetQuestions);
+        return {
+            deleted: result.length,
+            message: `${result.length}件の問題を削除しました`,
+        };
+    }
+    async exportCsv(genre, type, currentUser) {
+        let query = this.questionRepository.createQueryBuilder('q');
+        if (genre) {
+            query = query.where('q.genre = :genre', { genre });
+        }
+        if (type) {
+            query = query.andWhere('q.type = :type', { type });
+        }
+        if (currentUser && currentUser.role?.toUpperCase() !== 'MASTER') {
+            query = query.where('(q.companyId = :companyId OR q.companyId IS NULL)', {
+                companyId: currentUser.companyId,
+            });
+        }
+        const questions = await query.getMany();
+        const header = ['ID', 'ジャンル', 'タイプ', '問題文', '選択肢', '正解'].join(',');
+        const rows = questions.map((q) => {
+            const escapedTitle = q.title.includes(',') || q.title.includes('"') ? `"${q.title.replace(/"/g, '""')}"` : q.title;
+            const escapedChoices = q.choices.includes(',') || q.choices.includes('"') ? `"${q.choices.replace(/"/g, '""')}"` : q.choices;
+            return [q.id, q.genre, q.type, escapedTitle, escapedChoices, q.answer].join(',');
+        });
+        return [header, ...rows].join('\n');
+    }
+    async duplicate(questionId, currentUser, newTitle) {
+        const source = await this.questionRepository.findOne({ where: { id: questionId } });
+        if (!source)
+            throw new common_1.NotFoundException('複製元の問題が見つかりません');
+        const isMaster = currentUser.role?.toUpperCase() === 'MASTER';
+        if (!isMaster && source.companyId !== currentUser.companyId && source.companyId !== null) {
+            throw new common_1.ForbiddenException('複製権限がありません');
+        }
+        const duplicated = this.questionRepository.create({
+            ...source,
+            id: undefined,
+            title: newTitle || `${source.title}(コピー)`,
+            companyId: currentUser.companyId,
+        });
+        return this.questionRepository.save(duplicated);
+    }
 };
 exports.QuestionsService = QuestionsService;
 exports.QuestionsService = QuestionsService = __decorate([

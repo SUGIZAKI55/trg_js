@@ -108,4 +108,104 @@ export class QuestionsService {
     }
     await this.questionRepository.remove(question);
   }
+
+  /**
+   * ★追加: 一括削除
+   */
+  async batchDelete(questionIds: number[], currentUser: any): Promise<{ deleted: number; message: string }> {
+    if (!questionIds || questionIds.length === 0) {
+      throw new Error('削除対象の問題IDが指定されていません');
+    }
+
+    // 権限チェック：各問題が削除可能か確認
+    const questions = await this.questionRepository.find({
+      where: { id: undefined }, // これだと動作しないので IN() を使う
+    });
+
+    // TypeORM では IN() クエリ
+    const targetQuestions = await this.questionRepository
+      .createQueryBuilder('q')
+      .where('q.id IN (:...ids)', { ids: questionIds })
+      .getMany();
+
+    if (targetQuestions.length === 0) {
+      throw new NotFoundException('指定された問題が見つかりません');
+    }
+
+    // 権限チェック
+    const isMaster = currentUser.role?.toUpperCase() === 'MASTER';
+    for (const question of targetQuestions) {
+      if (!isMaster && question.companyId !== currentUser.companyId) {
+        throw new ForbiddenException('削除権限がない問題が含まれています');
+      }
+    }
+
+    // 一括削除実行
+    const result = await this.questionRepository.remove(targetQuestions);
+    return {
+      deleted: result.length,
+      message: `${result.length}件の問題を削除しました`,
+    };
+  }
+
+  /**
+   * ★追加: CSV エクスポート
+   */
+  async exportCsv(genre?: string, type?: string, currentUser?: any): Promise<string> {
+    let query = this.questionRepository.createQueryBuilder('q');
+
+    // フィルタ適用
+    if (genre) {
+      query = query.where('q.genre = :genre', { genre });
+    }
+
+    if (type) {
+      query = query.andWhere('q.type = :type', { type });
+    }
+
+    // 権限チェック：ユーザーは自社と共通ライブラリのみアクセス可能
+    if (currentUser && currentUser.role?.toUpperCase() !== 'MASTER') {
+      query = query.where('(q.companyId = :companyId OR q.companyId IS NULL)', {
+        companyId: currentUser.companyId,
+      });
+    }
+
+    const questions = await query.getMany();
+
+    // CSV ヘッダー
+    const header = ['ID', 'ジャンル', 'タイプ', '問題文', '選択肢', '正解'].join(',');
+
+    // CSV データ行
+    const rows = questions.map((q) => {
+      const escapedTitle = q.title.includes(',') || q.title.includes('"') ? `"${q.title.replace(/"/g, '""')}"` : q.title;
+      const escapedChoices = q.choices.includes(',') || q.choices.includes('"') ? `"${q.choices.replace(/"/g, '""')}"` : q.choices;
+      return [q.id, q.genre, q.type, escapedTitle, escapedChoices, q.answer].join(',');
+    });
+
+    return [header, ...rows].join('\n');
+  }
+
+  /**
+   * ★追加: 問題複製
+   */
+  async duplicate(questionId: number, currentUser: any, newTitle?: string): Promise<Question> {
+    const source = await this.questionRepository.findOne({ where: { id: questionId } });
+    if (!source) throw new NotFoundException('複製元の問題が見つかりません');
+
+    // 権限チェック
+    const isMaster = currentUser.role?.toUpperCase() === 'MASTER';
+    if (!isMaster && source.companyId !== currentUser.companyId && source.companyId !== null) {
+      throw new ForbiddenException('複製権限がありません');
+    }
+
+    // 新しい問題を作成
+    const duplicated = this.questionRepository.create({
+      ...source,
+      id: undefined, // 新規作成
+      title: newTitle || `${source.title}(コピー)`,
+      companyId: currentUser.companyId, // 自社IDを付与
+    });
+
+    return this.questionRepository.save(duplicated);
+  }
 }

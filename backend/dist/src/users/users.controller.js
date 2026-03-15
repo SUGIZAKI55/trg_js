@@ -38,8 +38,20 @@ let UsersController = class UsersController {
     findAll(req) {
         return this.usersService.findAll(req.user);
     }
+    getPatternDiagnosis(id) {
+        return this.usersService.getPatternDiagnosis(+id);
+    }
+    runPatternDiagnosis(id) {
+        return this.usersService.diagnoseAndSavePattern(+id);
+    }
+    forcePatternDiagnosis(id) {
+        return this.usersService.diagnoseAndSavePattern(+id);
+    }
     findOne(id) {
         return this.usersService.findOne(+id);
+    }
+    getAnalysisData(req) {
+        return this.usersService.getAnalysisData(req.user);
     }
     remove(id) {
         return this.usersService.remove(+id);
@@ -70,12 +82,44 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findAll", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Get)(':id/pattern-diagnosis'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getPatternDiagnosis", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)(':id/pattern-diagnosis'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "runPatternDiagnosis", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Patch)(':id/pattern-diagnosis/force'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "forcePatternDiagnosis", null);
+__decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Get)('analysis_data'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getAnalysisData", null);
 __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Delete)(':id'),

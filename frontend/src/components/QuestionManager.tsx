@@ -36,6 +36,9 @@ const QuestionManager: React.FC = () => {
   // CSV用
   const [file, setFile] = useState<File | null>(null);
 
+  // --- 一括削除用の状態 ---
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
   useEffect(() => {
     if (auth?.token) {
       fetchMyQuestions();
@@ -191,6 +194,98 @@ const QuestionManager: React.FC = () => {
     return sortOrder === 'asc' ? '↑' : '↓';
   };
 
+  // --- 一括削除用ハンドラ ---
+  const toggleSelect = (id: number) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedQuestions.length && paginatedQuestions.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      const allIds = new Set(paginatedQuestions.map((q) => q.id));
+      setSelectedIds(allIds);
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) {
+      alert('削除対象を選択してください');
+      return;
+    }
+
+    if (!window.confirm(`${selectedIds.size}件の問題を削除しますか？`)) return;
+
+    try {
+      await axios.post(
+        'http://localhost:3000/api/questions/batch-delete',
+        { questionIds: Array.from(selectedIds) },
+        {
+          headers: { Authorization: `Bearer ${auth?.token}` },
+        }
+      );
+      alert('削除完了！');
+      setSelectedIds(new Set());
+      fetchMyQuestions();
+    } catch (error) {
+      alert('一括削除失敗');
+      console.error(error);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (selectedGenre !== 'all') params.append('genre', selectedGenre);
+      if (selectedType !== 'all') params.append('type', selectedType);
+
+      const response = await axios.get(
+        `http://localhost:3000/api/questions/export/csv?${params}`,
+        {
+          headers: { Authorization: `Bearer ${auth?.token}` },
+          responseType: 'blob',
+        }
+      );
+
+      // ダウンロード処理
+      const url = window.URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `questions_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('エクスポート失敗');
+      console.error(error);
+    }
+  };
+
+  const handleDuplicate = async (questionId: number, title: string) => {
+    const newTitle = prompt('複製後の問題文を入力してください（デフォルト: 元の問題文(コピー)）');
+    if (newTitle === null) return; // キャンセル
+
+    try {
+      await axios.post(
+        `http://localhost:3000/api/questions/${questionId}/duplicate`,
+        newTitle ? { title: newTitle } : {},
+        {
+          headers: { Authorization: `Bearer ${auth?.token}` },
+        }
+      );
+      alert('複製完了！');
+      fetchMyQuestions();
+    } catch (error) {
+      alert('複製失敗');
+      console.error(error);
+    }
+  };
+
   return (
     <div className="container-main mt-4">
       <h2 className="page-title mb-4">問題管理・編集</h2>
@@ -301,16 +396,37 @@ const QuestionManager: React.FC = () => {
                   <option value={50}>50件表示</option>
                 </select>
               </div>
+              <div className="col-md-2 d-flex gap-2">
+                <button
+                  onClick={handleExportCsv}
+                  className="btn btn-success btn-sm flex-grow-1"
+                >
+                  📥 CSV
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* 検索結果情報 */}
-          <div className="alert alert-info mb-3" role="alert">
-            検索結果: <strong>{filteredAndSortedQuestions.length}件</strong>
-            {filteredAndSortedQuestions.length > 0 && (
-              <span className="ms-2 text-muted">
-                ({startIdx + 1}-{Math.min(endIdx, filteredAndSortedQuestions.length)}件目を表示)
-              </span>
+          {/* 検索結果情報 & 一括削除 */}
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div className="alert alert-info mb-0" role="alert">
+              検索結果: <strong>{filteredAndSortedQuestions.length}件</strong>
+              {filteredAndSortedQuestions.length > 0 && (
+                <span className="ms-2 text-muted">
+                  ({startIdx + 1}-{Math.min(endIdx, filteredAndSortedQuestions.length)}件目を表示)
+                </span>
+              )}
+            </div>
+            {selectedIds.size > 0 && (
+              <div>
+                <span className="badge bg-warning text-dark me-2">{selectedIds.size}件選択</span>
+                <button
+                  onClick={handleBatchDelete}
+                  className="btn btn-sm btn-danger"
+                >
+                  🗑️ 一括削除
+                </button>
+              </div>
             )}
           </div>
 
@@ -321,6 +437,14 @@ const QuestionManager: React.FC = () => {
                 <table className="table table-dark table-hover mb-0">
                   <thead>
                     <tr className="border-secondary text-muted small">
+                      <th style={{ width: '40px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.size === paginatedQuestions.length && paginatedQuestions.length > 0}
+                          onChange={toggleSelectAll}
+                          className="form-check-input"
+                        />
+                      </th>
                       <th
                         className="py-3 cursor-pointer"
                         style={{ width: '60px', cursor: 'pointer' }}
@@ -337,12 +461,20 @@ const QuestionManager: React.FC = () => {
                       </th>
                       <th className="py-3">問題文</th>
                       <th style={{ width: '100px' }}>タイプ</th>
-                      <th style={{ width: '100px' }}>操作</th>
+                      <th style={{ width: '150px' }}>操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginatedQuestions.map((q) => (
                       <tr key={q.id} className="align-middle border-secondary">
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(q.id)}
+                            onChange={() => toggleSelect(q.id)}
+                            className="form-check-input"
+                          />
+                        </td>
                         <td className="text-secondary small">{q.id}</td>
                         <td>
                           <span className="badge bg-info text-dark">{q.genre}</span>
@@ -357,6 +489,12 @@ const QuestionManager: React.FC = () => {
                             className="btn btn-sm btn-outline-primary me-1"
                           >
                             ✏️ 編集
+                          </button>
+                          <button
+                            onClick={() => handleDuplicate(q.id, q.title)}
+                            className="btn btn-sm btn-outline-secondary me-1"
+                          >
+                            📋 複製
                           </button>
                           <button
                             onClick={() => handleDelete(q.id)}

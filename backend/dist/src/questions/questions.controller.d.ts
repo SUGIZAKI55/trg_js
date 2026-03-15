@@ -8,5 +8,15 @@ export declare class QuestionsController {
     findCommon(): Promise<import("../entities/question.entity").Question[]>;
     update(id: string, updateData: any, req: any): Promise<import("../entities/question.entity").Question>;
     copy(id: string, req: any): Promise<import("../entities/question.entity").Question>;
+    duplicate(id: string, body: {
+        title?: string;
+    }, req: any): Promise<import("../entities/question.entity").Question>;
     remove(id: string, req: any): Promise<void>;
+    exportCsv(genre: string, type: string, req: any, res: any): Promise<void>;
+    batchDelete(body: {
+        questionIds: number[];
+    }, req: any): Promise<{
+        deleted: number;
+        message: string;
+    }>;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Post, Param, Body, UseGuards, Request, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Body, UseGuards, Request, Delete, Query, Response } from '@nestjs/common';
 import { QuestionsService } from './questions.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -39,8 +39,34 @@ export class QuestionsController {
     return this.questionsService.copyToCompany(+id, req.user);
   }
 
+  // ★追加: 問題複製
+  @Post(':id/duplicate')
+  duplicate(@Param('id') id: string, @Body() body: { title?: string }, @Request() req) {
+    return this.questionsService.duplicate(+id, req.user, body?.title);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string, @Request() req) {
     return this.questionsService.remove(+id, req.user);
+  }
+
+  // ★追加: CSV エクスポート
+  @Get('export/csv')
+  async exportCsv(
+    @Query('genre') genre: string,
+    @Query('type') type: string,
+    @Request() req,
+    @Response() res,
+  ) {
+    const csv = await this.questionsService.exportCsv(genre, type, req.user);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="questions_${new Date().toISOString().split('T')[0]}.csv"`);
+    res.send(csv);
+  }
+
+  // ★追加: 一括削除
+  @Post('batch-delete')
+  batchDelete(@Body() body: { questionIds: number[] }, @Request() req) {
+    return this.questionsService.batchDelete(body.questionIds, req.user);
   }
 }

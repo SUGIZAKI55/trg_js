@@ -68,6 +68,26 @@ __decorate([
     (0, typeorm_1.OneToMany)(() => learning_log_entity_1.LearningLog, (log) => log.user),
     __metadata("design:type", Array)
 ], User.prototype, "learningLogs", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'pattern_type', type: 'varchar', nullable: true }),
+    __metadata("design:type", String)
+], User.prototype, "patternType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'pattern_diagnosed_at', type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], User.prototype, "patternDiagnosedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'pattern_score', type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], User.prototype, "patternScore", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'genre_concentration', type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], User.prototype, "genreConcentration", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'growth_rate', type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], User.prototype, "growthRate", void 0);
 exports.User = User = __decorate([
     (0, typeorm_1.Entity)('user')
 ], User);
