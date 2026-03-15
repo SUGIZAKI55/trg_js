@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { usersApi } from '../services/api';
 import { Chart as ChartJS, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend } from 'chart.js';
 import { Radar } from 'react-chartjs-2';
 
@@ -26,10 +26,7 @@ const UserDashboard: React.FC = () => {
       }
 
       try {
-        // ★修正ポイント: URLをバックエンド(users複数形)に合わせてフルパス指定
-        const res = await axios.get('http://localhost:3000/api/users/dashboard_data', {
-          headers: { Authorization: `Bearer ${auth.token}` }
-        });
+        const res = await usersApi.getDashboardData();
         
         setGenreStats(res.data.genre_stats);
         setReviewCount(res.data.review_count);

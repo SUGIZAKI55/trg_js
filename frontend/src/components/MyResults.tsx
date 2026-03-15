@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Doughnut } from 'react-chartjs-2'; // ドーナツグラフをインポート
+import { Doughnut } from 'react-chartjs-2';
+import { userApi } from '../services/api';
 
 // APIから受け取る生データの型
 interface ResultData {
@@ -29,19 +29,17 @@ const MyResults: React.FC = () => {
   useEffect(() => {
     const fetchMyResults = async () => {
       try {
-        const res = await axios.get<ResultData[]>('/api/user/my_results', {
-          headers: { Authorization: `Bearer ${auth?.token}` },
-        });
-        
+        const res = await userApi.getResults();
+
         // --- データを集計 ---
         const quizRuns: Record<string, QuizRun> = {};
         let totalAll = 0;
         let correctAll = 0;
-        
-        res.data.forEach((r) => {
+
+        res.data.forEach((r: ResultData) => {
           totalAll++;
           if (r.is_correct) correctAll++;
-          
+
           if (!quizRuns[r.session_id]) {
             quizRuns[r.session_id] = { total: 0, correct: 0, timestamp: r.timestamp };
           }
@@ -51,7 +49,7 @@ const MyResults: React.FC = () => {
 
         setRuns(quizRuns);
         setOverallStats({ total: totalAll, correct: correctAll });
-        
+
       } catch (err) {
         setError('成績の読み込みに失敗しました。');
       } finally {

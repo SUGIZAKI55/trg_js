@@ -67,4 +67,38 @@ export class User {
    */
   @OneToMany(() => LearningLog, (log) => log.user)
   learningLogs: LearningLog[];
+
+  // --- 学習パターン診断関連フィールド ---
+
+  /**
+   * 診断タイプ：'balanced' | 'specialist' | 'growth' | 'improvement' | 'beginner'
+   */
+  @Column({ name: 'pattern_type', type: 'varchar', nullable: true })
+  patternType: string | null;
+
+  /**
+   * 診断実施日時
+   */
+  @Column({ name: 'pattern_diagnosed_at', type: 'datetime', nullable: true })
+  patternDiagnosedAt: Date | null;
+
+  /**
+   * 診断信度スコア (0-100)
+   */
+  @Column({ name: 'pattern_score', type: 'float', nullable: true })
+  patternScore: number | null;
+
+  /**
+   * ジャンル集中度 (0-100)
+   * 高いほど特定分野に集中、低いほどバランス型
+   */
+  @Column({ name: 'genre_concentration', type: 'float', nullable: true })
+  genreConcentration: number | null;
+
+  /**
+   * 成長率 (%)
+   * 学習前半と後半の正答率の変化
+   */
+  @Column({ name: 'growth_rate', type: 'float', nullable: true })
+  growthRate: number | null;
 }

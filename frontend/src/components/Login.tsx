@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { authApi } from '../services/api';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -16,9 +17,8 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // 1. バックエンドにログイン要求
-      // ★修正: URLを '/api/auth/login' に戻しました
-      const res = await axios.post('http://localhost:3000/api/auth/login', { username, password });
+      // API Service経由でログイン
+      const res = await authApi.login(username, password);
       
       // ★デバッグ用: 取得したデータをコンソールに表示
       console.log("ログイン成功:", res.data);

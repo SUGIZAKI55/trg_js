@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { apiClient } from '../services/api';
 
 const BulkRegister: React.FC = () => {
   const [mode, setMode] = useState<'user' | 'company'>('user');
@@ -12,8 +12,8 @@ const BulkRegister: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
-      const endpoint = mode === 'user' ? '/api/admin/bulk_users' : '/api/master/bulk_companies';
-      const res = await axios.post(endpoint, { csv_text: csvText }, { headers: { Authorization: `Bearer ${auth?.token}` } });
+      const endpoint = mode === 'user' ? '/admin/bulk_users' : '/master/bulk_companies';
+      const res = await apiClient.post(endpoint, { csv_text: csvText });
       setResult(res.data);
       if (!res.data.errors.length) setCsvText('');
     } catch { alert("送信失敗"); }

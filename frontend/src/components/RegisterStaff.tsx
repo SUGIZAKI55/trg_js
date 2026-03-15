@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext'; // 権限チェック用に追加
+import { useAuth } from '../contexts/AuthContext';
+import { usersApi, companiesApi } from '../services/api';
 
 interface Company {
   id: number;
@@ -27,9 +27,7 @@ const RegisterStaff: React.FC = () => {
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const res = await axios.get('http://localhost:3000/api/companies', {
-          headers: { Authorization: `Bearer ${auth?.token}` }
-        });
+        const res = await companiesApi.getAll();
         setCompanies(res.data);
       } catch (err) {
         console.error("会社一覧取得エラー", err);
@@ -47,15 +45,13 @@ const RegisterStaff: React.FC = () => {
     }
 
     try {
-      await axios.post('http://localhost:3000/api/users', {
+      await usersApi.create({
         username,
         password,
-        role, // UsersService側でもtoUpperCaseされますが、フロント側も合わせて送信
+        role,
         companyId: Number(companyId),
-      }, {
-        headers: { Authorization: `Bearer ${auth?.token}` }
       });
-      
+
       setMessage('✅ ユーザー登録成功！');
       // 3秒後に一覧へ戻る（ユーザー体験の向上）
       setTimeout(() => navigate('/users'), 2000);

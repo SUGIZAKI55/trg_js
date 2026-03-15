@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { learningLogsApi } from '../services/api';
 
 interface LearningLog {
   id: number;
@@ -21,10 +21,7 @@ const LearningView: React.FC = () => {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await axios.get('http://localhost:3000/api/learning-logs', {
-          headers: { Authorization: `Bearer ${auth?.token}` },
-        });
-        // ★修正: 存在しなかった setUsers を削除し、setLogs のみに統一
+        const res = await learningLogsApi.getAll();
         setLogs(res.data);
       } catch (err) {
         console.error('成績データの取得に失敗しました:', err);

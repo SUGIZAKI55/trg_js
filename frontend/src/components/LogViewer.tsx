@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { apiClient } from '../services/api';
 
 // ログデータの型
 interface QuizLogEntry {
@@ -33,9 +33,7 @@ const LogViewer: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      const response = await axios.get('/api/admin/logs', {
-        headers: { Authorization: `Bearer ${auth?.token}` },
-      });
+      const response = await apiClient.get('/admin/logs');
 
       const logs: QuizLogEntry[] = response.data;
       setAllLogs(logs);
