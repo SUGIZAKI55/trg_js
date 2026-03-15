@@ -79,7 +79,7 @@ export class User {
   /**
    * 診断実施日時
    */
-  @Column({ name: 'pattern_diagnosed_at', type: 'datetime', nullable: true })
+  @Column({ name: 'pattern_diagnosed_at', type: 'timestamp', nullable: true })
   patternDiagnosedAt: Date | null;
 
   /**
