@@ -73,7 +73,7 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "patternType", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'pattern_diagnosed_at', type: 'timestamp', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'pattern_diagnosed_at', type: 'datetime', nullable: true }),
     __metadata("design:type", Date)
 ], User.prototype, "patternDiagnosedAt", void 0);
 __decorate([

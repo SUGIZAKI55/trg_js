@@ -34,4 +34,28 @@ export class LearningLogsService {
 
     return await this.logRepository.save(logEntities);
   }
+
+  // ★分析用データ取得メソッド（管理者向け）
+  async getAnalysisData(currentUser: any): Promise<any[]> {
+    const logs = await this.logRepository.find({
+      where: currentUser.role !== 'MASTER' ? { user: { company: { id: currentUser.companyId } } } : {},
+      relations: ['user', 'user.company', 'question'],
+      order: { learned_at: 'DESC' }
+    });
+
+    // データをフォーマットして返す
+    return logs.map((log) => ({
+      timestamp: log.learned_at.toISOString(),
+      question_title: log.question?.title || '',
+      is_correct: log.is_correct,
+      elapsed_time: null, // 現在エンティティに elapsed_time フィールドがないため null
+      genre: log.question?.genre || '',
+      user: {
+        id: log.user?.id,
+        username: log.user?.username,
+        company: log.user?.company
+      },
+      question_id: log.question?.id
+    }));
+  }
 }

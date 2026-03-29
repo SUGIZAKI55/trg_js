@@ -15,3 +15,6 @@ venv*
 *.log
 tmp/
 temp/
+
+# Claude Agent worktrees
+.claude/

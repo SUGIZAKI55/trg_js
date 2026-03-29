@@ -81,6 +81,8 @@ export const userApi = {
 // Admin API
 export const adminApi = {
   getResults: () => apiClient.get('/admin/results'),
+  getLogs: () => apiClient.get('/admin/logs'),
+  getRoles: () => apiClient.get('/admin/roles'),
 };
 
 export { apiClient };

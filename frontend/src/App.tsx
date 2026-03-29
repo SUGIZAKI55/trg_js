@@ -4,22 +4,24 @@ import Signup from './components/Signup';
 import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import UserList from './components/UserList';
-import RegisterCompany from './components/RegisterCompany'; 
-import QuestionManager from './components/QuestionManager'; 
+import RegisterCompany from './components/RegisterCompany';
+import QuestionManager from './components/QuestionManager';
 import GenreSelect from './components/GenreSelect';
 import QuizQuestion from './components/QuizQuestion';
 import QuizResults from './components/QuizResults';
 import RegisterStaff from './components/RegisterStaff';
 import CreateQuestion from './components/CreateQuestion';
-import LogViewer from './components/LogViewer'; 
-import MyResults from './components/MyResults'; 
-import DeveloperFlow from './components/DeveloperFlow'; 
+import LogViewer from './components/LogViewer';
+import MyResults from './components/MyResults';
+import DeveloperFlow from './components/DeveloperFlow';
 import MyAnalysis from './components/MyAnalysis';
 import LearnerAnalysis from './components/LearnerAnalysis';
-import BulkRegister from './components/BulkRegister'; 
+import AdminAnalysis from './components/AdminAnalysis';
+import BulkRegister from './components/BulkRegister';
+import RolePermissions from './components/RolePermissions';
 
 // ★追加: 新しい成績管理画面をインポート
-import LearningView from './components/LearningView'; 
+import LearningView from './components/LearningView';
 import Navbar from './components/Navbar';
 
 import { useAuth } from './contexts/AuthContext';
@@ -69,15 +71,16 @@ function App() {
           <Route path="/register_company" element={isMaster ? <RegisterCompany /> : <Navigate to="/login" />} />
           
           <Route path="/q_list" element={isAdminOrMaster ? <QuestionManager /> : <Navigate to="/login" />} />
-          
+
           {/* ★修正: 旧 TestResults から LearningView に差し替え */}
           <Route path="/view" element={isAdminOrMaster ? <LearningView /> : <Navigate to="/login" />} />
-          
+
           <Route path="/register_staff" element={isAdminOrMaster ? <RegisterStaff /> : <Navigate to="/login" />} />
           <Route path="/create_question" element={isAdminOrMaster ? <CreateQuestion /> : <Navigate to="/login" />} />
           <Route path="/admin/logs" element={isAdminOrMaster ? <LogViewer /> : <Navigate to="/login" />} />
+          <Route path="/admin/roles" element={isAdminOrMaster ? <RolePermissions /> : <Navigate to="/login" />} />
           <Route path="/dev/flow" element={isAdminOrMaster ? <DeveloperFlow /> : <Navigate to="/login" />} />
-          <Route path="/admin/analysis" element={isAdminOrMaster ? <LearnerAnalysis /> : <Navigate to="/login" />} />
+          <Route path="/admin/analysis" element={isAdminOrMaster ? <AdminAnalysis /> : <Navigate to="/login" />} />
           <Route path="/admin/bulk" element={isAdminOrMaster ? <BulkRegister /> : <Navigate to="/login" />} />
 
           {/* --- デフォルトルート --- */}

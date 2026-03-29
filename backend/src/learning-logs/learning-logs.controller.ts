@@ -12,6 +12,11 @@ export class LearningLogsController {
     return this.logsService.findAll(req.user);
   }
 
+  @Get('analysis_data')
+  async getAnalysisData(@Request() req) {
+    return this.logsService.getAnalysisData(req.user);
+  }
+
   @Post()
   async create(@Body() body: { results: { questionId: number, isCorrect: boolean }[] }, @Request() req) {
     // Serviceの createLogs メソッドを呼び出す
