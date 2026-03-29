@@ -8,4 +8,5 @@ export declare class LearningLogsService {
         questionId: number;
         isCorrect: boolean;
     }[]): Promise<LearningLog[]>;
+    getAnalysisData(currentUser: any): Promise<any[]>;
 }

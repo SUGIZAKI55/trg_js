@@ -6,23 +6,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UsersModule = void 0;
+exports.AdminModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
-const users_service_1 = require("./users.service");
-const users_controller_1 = require("./users.controller");
-const pattern_diagnosis_service_1 = require("./pattern-diagnosis.service");
-const user_entity_1 = require("../entities/user.entity");
+const admin_service_1 = require("./admin.service");
+const admin_controller_1 = require("./admin.controller");
 const learning_log_entity_1 = require("../entities/learning-log.entity");
-let UsersModule = class UsersModule {
+let AdminModule = class AdminModule {
 };
-exports.UsersModule = UsersModule;
-exports.UsersModule = UsersModule = __decorate([
+exports.AdminModule = AdminModule;
+exports.AdminModule = AdminModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([user_entity_1.User, learning_log_entity_1.LearningLog])],
-        providers: [users_service_1.UsersService, pattern_diagnosis_service_1.PatternDiagnosisService],
-        controllers: [users_controller_1.UsersController],
-        exports: [users_service_1.UsersService],
+        imports: [typeorm_1.TypeOrmModule.forFeature([learning_log_entity_1.LearningLog])],
+        providers: [admin_service_1.AdminService],
+        controllers: [admin_controller_1.AdminController],
     })
-], UsersModule);
-//# sourceMappingURL=users.module.js.map
+], AdminModule);
+//# sourceMappingURL=admin.module.js.map

@@ -23,6 +23,9 @@ let LearningLogsController = class LearningLogsController {
     findAll(req) {
         return this.logsService.findAll(req.user);
     }
+    async getAnalysisData(req) {
+        return this.logsService.getAnalysisData(req.user);
+    }
     async create(body, req) {
         return this.logsService.createLogs(req.user, body.results);
     }
@@ -35,6 +38,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], LearningLogsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('analysis_data'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], LearningLogsController.prototype, "getAnalysisData", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),

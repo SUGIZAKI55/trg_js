@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { CompaniesModule } from './companies/companies.module';
 import { QuestionsModule } from './questions/questions.module';
 import { LearningLogsModule } from './learning-logs/learning-logs.module';
+import { AdminModule } from './admin/admin.module';
 
 // データベースの設計図（Entities）
 import { User } from './entities/user.entity';
@@ -43,6 +44,7 @@ import { LearningLog } from './entities/learning-log.entity';
     CompaniesModule,
     QuestionsModule,
     LearningLogsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

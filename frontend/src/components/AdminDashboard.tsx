@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,8 +9,6 @@ const AdminDashboard: React.FC = () => {
   // ★判定を強化：大文字小文字に関わらず 'master' なら true にする
   const userRole = auth?.role ? String(auth.role).toUpperCase() : '';
   const isMaster = userRole === 'MASTER';
-  
-  const [showPermissions, setShowPermissions] = useState(false);
 
   return (
     <div className="container-main">
@@ -86,7 +84,7 @@ const AdminDashboard: React.FC = () => {
         <div className="card-header">⚙️ システム・その他</div>
         <div className="card-body">
           <div className="dashboard-grid">
-            <div className="dashboard-tile" onClick={() => setShowPermissions(true)}>
+            <div className="dashboard-tile" onClick={() => navigate('/admin/roles')}>
               <span className="tile-icon">🛡️</span><span>権限一覧</span>
             </div>
             <div className="dashboard-tile" onClick={() => navigate('/admin/logs')}>
