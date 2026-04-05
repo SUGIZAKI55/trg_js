@@ -15,7 +15,6 @@ const UserDashboard: React.FC = () => {
   // 状態管理
   const [loading, setLoading] = useState(true);
   const [genreStats, setGenreStats] = useState<Record<string, number>>({});
-  const [reviewCount, setReviewCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -27,9 +26,8 @@ const UserDashboard: React.FC = () => {
 
       try {
         const res = await usersApi.getDashboardData();
-        
+
         setGenreStats(res.data.genre_stats);
-        setReviewCount(res.data.review_count);
       } catch (error) {
         console.error("ダッシュボードデータの取得に失敗しました:", error);
       } finally {

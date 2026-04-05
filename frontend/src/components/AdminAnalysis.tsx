@@ -14,7 +14,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
-import { Bar, Pie, Line } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 
 // Chart.js コンポーネント登録
 ChartJS.register(

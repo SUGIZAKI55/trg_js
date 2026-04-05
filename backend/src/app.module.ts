@@ -28,11 +28,11 @@ import { Genre } from './entities/genre.entity';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'trg_user',
-      password: 'trg_password_123',
-      database: 'trg_js_db',
+      host: process.env.DB_HOST || 'postgres',
+      port: parseInt(process.env.DB_PORT || '5432'),
+      username: process.env.DB_USERNAME || 'trg_user',
+      password: process.env.DB_PASSWORD || 'trg_password_123',
+      database: process.env.DB_DATABASE || 'trg_js_db',
       entities: [
         User,
         Company,

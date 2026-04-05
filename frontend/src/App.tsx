@@ -15,7 +15,6 @@ import LogViewer from './components/LogViewer';
 import MyResults from './components/MyResults';
 import DeveloperFlow from './components/DeveloperFlow';
 import MyAnalysis from './components/MyAnalysis';
-import LearnerAnalysis from './components/LearnerAnalysis';
 import AdminAnalysis from './components/AdminAnalysis';
 import BulkRegister from './components/BulkRegister';
 import RolePermissions from './components/RolePermissions';

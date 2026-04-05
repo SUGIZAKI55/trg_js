@@ -266,7 +266,7 @@ const QuestionManager: React.FC = () => {
     }
   };
 
-  const handleDuplicate = async (questionId: number, title: string) => {
+  const handleDuplicate = async (questionId: number) => {
     const newTitle = prompt('複製後の問題文を入力してください（デフォルト: 元の問題文(コピー)）');
     if (newTitle === null) return; // キャンセル
 
@@ -491,7 +491,7 @@ const QuestionManager: React.FC = () => {
                             ✏️ 編集
                           </button>
                           <button
-                            onClick={() => handleDuplicate(q.id, q.title)}
+                            onClick={() => handleDuplicate(q.id)}
                             className="btn btn-sm btn-outline-secondary me-1"
                           >
                             📋 複製

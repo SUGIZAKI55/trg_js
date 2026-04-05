@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import { learningLogsApi } from '../services/api';
 
 const QuizQuestion: React.FC = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { auth } = useAuth();
   
   const questions = state?.questions || [];
   const [currentIndex, setCurrentIndex] = useState(0);
