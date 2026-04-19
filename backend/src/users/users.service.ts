@@ -169,6 +169,100 @@ export class UsersService {
   }
 
   /**
+   * ダッシュボード統計情報を取得
+   */
+  async getDashboardData(currentUser: any): Promise<any> {
+    const userRole = currentUser.role ? String(currentUser.role).toUpperCase() : '';
+
+    // MASTER: 全データを集計、それ以外は同社データのみ
+    let totalUsers: number;
+    let activeUsersData: any;
+    let allUsers: User[];
+    let allLogs: LearningLog[];
+
+    if (userRole === 'MASTER') {
+      // MASTER: 全ユーザー・全ログを取得
+      totalUsers = await this.usersRepository.count();
+      allUsers = await this.usersRepository.find({
+        relations: ['company']
+      });
+      allLogs = await this.learningLogRepository.find({
+        relations: ['user']
+      });
+    } else {
+      // 管理者: 同社ユーザーのみ
+      const companyId = currentUser.companyId;
+      totalUsers = await this.usersRepository.count({
+        where: { company: { id: companyId } }
+      });
+      allUsers = await this.usersRepository.find({
+        where: { company: { id: companyId } },
+        relations: ['company']
+      });
+      allLogs = await this.learningLogRepository.find({
+        where: { user: { company: { id: companyId } } },
+        relations: ['user']
+      });
+    }
+
+    // 2. 今月アクティブユーザー数
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const activeUserIds = new Set(
+      allLogs
+        .filter(log => new Date(log.learned_at) >= thirtyDaysAgo)
+        .map(log => log.user.id)
+    );
+    const activeUsers = activeUserIds.size;
+
+    // 3. 学習完了率（成績70%以上のユーザー率）と平均スコア
+    let usersWithGoodScore = 0;
+    let totalScore = 0;
+    let usersWithScore = 0;
+
+    for (const user of allUsers) {
+      // ユーザーの学習ログから成績を計算
+      const userLogs = allLogs.filter(log => log.user.id === user.id);
+      if (userLogs.length === 0) continue;
+
+      const correctCount = userLogs.filter(log => log.is_correct).length;
+      const score = (correctCount / userLogs.length) * 100;
+
+      if (score >= 70) {
+        usersWithGoodScore++;
+      }
+      totalScore += score;
+      usersWithScore++;
+    }
+
+    const completionRate = totalUsers > 0 ? (usersWithGoodScore / totalUsers) * 100 : 0;
+    const averageScore = usersWithScore > 0 ? totalScore / usersWithScore : 0;
+
+    // 4. 要注意ユーザー数（成績<40%）
+    let atRiskCount = 0;
+    for (const user of allUsers) {
+      const userLogs = allLogs.filter(log => log.user.id === user.id);
+      if (userLogs.length === 0) continue;
+
+      const correctCount = userLogs.filter(log => log.is_correct).length;
+      const score = (correctCount / userLogs.length) * 100;
+
+      if (score < 40) {
+        atRiskCount++;
+      }
+    }
+
+    return {
+      totalUsers,
+      activeUsers,
+      completionRate: Math.round(completionRate * 10) / 10,
+      averageScore: Math.round(averageScore * 10) / 10,
+      atRiskUsers: atRiskCount
+    };
+  }
+
+  /**
    * パターンタイプに応じた推奨メッセージを取得
    */
   private getRecommendationMessage(patternType: string): string {
