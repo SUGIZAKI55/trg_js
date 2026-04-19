@@ -10,16 +10,8 @@ export class UsersController {
   // ダッシュボード用データ
   @UseGuards(JwtAuthGuard)
   @Get('dashboard_data')
-  getDashboardData(@Request() req) {
-    return {
-      username: req.user.username,
-      review_count: 5,
-      genre_stats: {
-        'Business': 80,
-        'IT': 65,
-        'Compliance': 90
-      }
-    };
+  async getDashboardData(@Request() req) {
+    return this.usersService.getDashboardData(req.user);
   }
 
   @Post()
