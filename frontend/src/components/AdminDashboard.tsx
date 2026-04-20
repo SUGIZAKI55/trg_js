@@ -11,6 +11,9 @@ const AdminDashboard: React.FC = () => {
   const userRole = auth?.role ? String(auth.role).toUpperCase() : '';
   const isMaster = userRole === 'MASTER';
 
+  // サイドバーの状態管理
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+
   // 統計情報の状態管理
   const [dashboardStats, setDashboardStats] = React.useState({
     totalUsers: 0,
@@ -50,9 +53,25 @@ const AdminDashboard: React.FC = () => {
     }
   }, [auth?.token]);
 
+  const handleToggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const handleMenuNavigate = () => {
+    setSidebarOpen(false);  // メニュー選択時にサイドバーを閉じる
+  };
+
   return (
     <div className="admin-layout">
-      <Sidebar />
+      {/* ハンバーガーアイコン（モバイルのみ表示） */}
+      <div className="hamburger-icon" onClick={handleToggleSidebar}>
+        ☰
+      </div>
+
+      <Sidebar
+        isOpen={sidebarOpen}
+        onNavigate={handleMenuNavigate}
+      />
       <div className="admin-main-content">
         <div className="container-main">
           {/* 統計情報カード */}

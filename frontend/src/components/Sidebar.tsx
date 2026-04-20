@@ -15,7 +15,12 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onNavigate?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onNavigate }) => {
   const { auth, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -67,6 +72,7 @@ const Sidebar: React.FC = () => {
 
   const handleNavigate = (path: string) => {
     navigate(path);
+    onNavigate?.();  // メニュー選択時にサイドバーを閉じる
   };
 
   const handleLogout = () => {
@@ -75,7 +81,7 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
         <h3 style={{ margin: 0, fontSize: '1.2rem', background: 'var(--gemini-grad)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', display: 'inline-block' }}>
           Admin
